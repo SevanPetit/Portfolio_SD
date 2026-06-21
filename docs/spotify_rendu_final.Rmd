@@ -1,0 +1,1487 @@
+---
+title: "Analyse Spotify"
+subtitle: "Prédiction de la popularité des morceaux musicaux"
+author: "PENVEN Carl | PETIT Sevan | RONARC'H Joshua | TIYAL Taha"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    theme: flatly
+    highlight: tango
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+    number_sections: true
+    df_print: paged
+    code_folding: hide
+    css: |
+      body {
+        font-family: 'Segoe UI', sans-serif;
+        background-color: #f9f9f9;
+      }
+      h1, h2, h3 {
+        color: #1DB954;
+        font-weight: bold;
+      }
+      .section-intro {
+        background: #191414;
+        color: #FFFFFF;
+        padding: 12px 16px;
+        border-left: 5px solid #1DB954;
+        border-radius: 4px;
+        margin-bottom: 16px;
+        font-size: 0.95em;
+      }
+      .texte {
+        background: #f0faf4;
+        border-left: 5px solid #1DB954;
+        border-radius: 4px;
+        padding: 12px 16px;
+        margin: 12px 0 16px 0;
+        font-size: 0.93em;
+        color: #1a1a2e;
+      }
+      .texte strong { color: #157a38; }
+      .texte ul { margin: 6px 0 0 0; padding-left: 18px; }
+---
+
+```{r setup, include=FALSE}
+# ── Configuration globale des chunks ──────────────────────────────────────────
+# echo = TRUE     : affiche le code dans le HTML final
+# warning = FALSE : masque les avertissements pour un rendu plus propre
+# message = FALSE : masque les messages de chargement des packages
+knitr::opts_chunk$set(
+  echo    = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center",
+  fig.width = 10,
+  fig.height = 6
+)
+```
+
+---
+
+# Chargement des Librairies
+
+<div class="section-intro">
+Chargement de l'ensemble des packages nécessaires à l'analyse : manipulation de données, visualisation, statistiques et modélisation.
+</div>
+
+```{r librairies}
+library(tidyverse)       # Manipulation et visualisation de données (dplyr, ggplot2, etc.)
+library(readxl)          # Lecture des fichiers Excel
+library(janitor)         # Nettoyage des noms de colonnes
+library(stringr)         # Manipulation de chaînes de caractères
+library(moments)         # Calcul de skewness / kurtosis
+library(ggplot2)         # Visualisations avancées
+library(GGally)          # Matrices de graphiques (ggpairs)
+library(ggcorrplot)      # Carte de chaleur des corrélations
+library(car)             # Diagnostic des modèles (VIF, tests)
+library(caret)           # Framework de machine learning
+library(tidymodels)      # Pipelines de modélisation
+library(scales)          # Formatage des axes (labels monétaires, %)
+library(knitr)           # Tableaux HTML propres
+library(kableExtra)      # Mise en forme avancée des tableaux kable
+```
+
+---
+
+# Nettoyage des données
+<div class="section-intro">
+Importation du dataset principal, nettoyage des noms d'artistes, conversion des types et enrichissement avec une base de données de nationalités. Cette étape est fondamentale pour garantir la qualité de l'analyse.
+</div>
+
+## Importation & Aperçu
+
+```{r import-donnees}
+# Chargement du fichier Excel nettoyé et enrichi
+df <- read_excel("DF_401_Spotify_Nettoye_Enrichi - Copie(1).xlsx")
+
+# Aperçu des types de colonnes permet de vérifier que chaque variable
+# est bien au bon format (numérique, caractère, logique...)
+str(df)
+```
+
+## Nettoyage des Noms de Colonnes
+
+On recode les noms de certaines colonnes afin de pouvoir obtenir des entêtes homogènes nécessaires à la fusion de notre dataset avec les jeux de données contenant les variables d'enrichissement
+
+```{r nettoyage-noms}
+# Détection dynamique des colonnes 'track_name' et 'artist_name'
+# (utile si les noms exact diffèrent entre versions du fichier)
+track_col  <- names(df)[str_detect(names(df), regex("track_name",   ignore_case = TRUE))][1]
+artist_col <- names(df)[str_detect(names(df), regex("artist_s_name", ignore_case = TRUE))][1]
+
+# Création d'un fichier épuré avec uniquement titres & artistes nettoyés
+clean_df <- df %>%
+  select(track_name  = all_of(track_col),
+         artist_name = all_of(artist_col)) %>%
+  mutate(
+    track_name  = str_squish(track_name),   # Supprime les espaces superflus
+    artist_name = str_squish(artist_name)
+  )
+
+write_csv(clean_df, "spotify_clean.csv")
+```
+
+## Correction des Caractères Parasites
+
+Certains caractères du jeu de données semblent corrompus, on les recode ici afin de faciliter l'exploitation du fichier par la suite.
+
+```{r correction-encodage}
+# Certains noms d'artistes contiennent des séquences d'encodage corrompu "ï¿½"
+# (résultat d'une mauvaise conversion UTF-8). On les supprime proprement.
+df <- df %>%
+  mutate(
+    artist_name = str_replace_all(artist_s_name, "ï¿½", "")
+  )
+```
+
+## Conversion & Nettoyage des Types
+
+```{r conversion-types}
+# La colonne 'streams' peut être lue comme du texte par Excel.
+# On force la conversion en numérique et on retire les lignes non convertibles.
+df <- df %>%
+  mutate(streams = as.numeric(streams)) %>%
+  filter(!is.na(streams))
+
+# 'key' (tonalité) et 'mode' (majeur/mineur) sont des variables catégorielles :
+# on les convertit en facteurs pour les analyses ultérieures.
+df <- df %>%
+  mutate(
+    key  = as.factor(key),
+    mode = as.factor(mode)
+  )
+
+# Si la durée est disponible en millisecondes, on crée une version en minutes
+# (plus lisible pour l'interprétation)
+if ("duration_ms" %in% colnames(df)) {
+  df <- df %>% mutate(duration_min = duration_ms / 60000)
+}
+```
+
+## Enrichissement : Nationalité des Artistes
+
+```{r enrichissement-nationalites}
+# Chargement d'une base externe (Kaggle/MusicBrainz) contenant
+# la nationalité de chaque artiste
+nationalites_db <- read_csv("artists.csv") %>%
+  select(artist_mb, country_mb) %>%
+  rename(artist_name = artist_mb, country = country_mb) %>%
+  distinct(artist_name, .keep_all = TRUE)  # Un seul enregistrement par artiste
+
+# Lorsqu'un morceau a plusieurs artistes (séparés par des virgules),
+# on isole le premier pour faciliter la jointure
+df <- df %>%
+  mutate(
+    primary_artist = str_extract(artist_s_name, "^[^,]+") %>% str_trim()
+  )
+
+# Jointure gauche : on conserve tous les morceaux, même sans nationalité connue
+df <- df %>%
+  left_join(nationalites_db, by = c("primary_artist" = "artist_name"))
+
+# Vérification : combien de lignes ont été enrichies ?
+head(df %>% select(artist_s_name, primary_artist, country.x))
+```
+---
+
+# Analyses Univariées
+
+<div class="section-intro">
+On s'intéresse ici à la distribution de la variable cible : le nombre de streams (notre Y). L'objectif est de comprendre sa forme (symétrie, concentration, valeurs extrêmes) avant toute modélisation.
+</div>  
+
+## Distribution des Streams
+
+```{r distrib-streams}
+# Calcul des statistiques de position pour la visualisation
+mu  <- mean(df$streams, na.rm = TRUE)
+med <- median(df$streams, na.rm = TRUE)
+
+# La densité maximale sert à positionner les étiquettes en hauteur
+# de façon proportionnelle, sans chevauchement
+densite_max <- max(density(df$streams, na.rm = TRUE)$y)
+
+# ── Graphique : Histogramme + Densité ────────────────────────────────────────
+# Le fort décalage entre moyenne et médiane trahit une distribution
+# asymétrique à droite (quelques mega-hits tirent la moyenne vers le haut)
+ggplot(df, aes(x = streams)) +
+  
+  geom_histogram(aes(y = ..density..), bins = 40,
+                 fill = "#1DB954", color = "white", alpha = 0.7) +
+  geom_density(color = "#191414", size = 1) +
+  
+  geom_vline(aes(xintercept = mu),  color = "#E91E63", linetype = "dashed", size = 1) +
+  geom_vline(aes(xintercept = med), color = "#2E77D0", linetype = "solid",  size = 1) +
+  
+  annotate("text", x = mu, y = densite_max * 0.95,
+           label  = paste("Moyenne :\n", scales::comma(round(mu))),
+           hjust  = -0.1, color = "#E91E63", fontface = "bold", size = 4) +
+  
+  annotate("text", x = med, y = densite_max * 0.60,
+           label  = paste("Médiane :\n", scales::comma(round(med))),
+           hjust  = -0.1, color = "#2E77D0", fontface = "bold", size = 4) +
+  
+  scale_x_continuous(labels = scales::comma) +
+  theme_minimal(base_size = 14) +
+  labs(
+    title    = "Distribution des Streams Spotify",
+    subtitle = "Décalage visible entre Moyenne et Médiane → Distribution asymétrique à droite",
+    x = "Nombre de Streams",
+    y = "Densité"
+  ) +
+  theme(
+    plot.title       = element_text(face = "bold", color = "#191414"),
+    panel.grid.minor = element_blank()
+  )
+```
+
+<div class="texte">
+<strong> Ce que le graphique nous dit :</strong>
+<ul>
+<li>La distribution est fortement <strong>asymétrique à droite</strong> : la grande majorité des morceaux accumulent peu de streams, tandis qu'une poignée de méga-hits concentrent une part disproportionnée des écoutes.</li>
+<li>Le <strong>décalage entre moyenne et médiane</strong> est le signe caractéristique de cette asymétrie : la moyenne est "tirée" vers le haut par les outliers, rendant la médiane bien plus représentative du morceau "typique".</li>
+<li>Ce type de distribution est courant dans les industries créatives : on parle d'effet <strong>"winner takes all"</strong>, où quelques titres dominent massivement le marché. On peut quantifier cela avec le ratio Moyenne/Médiane. Dans le cas présent il vaut 1,77, un ratio supérieur à 1 confirme alors l'asymétrie à droite.</li>
+</ul>
+</div>
+
+```{r table-distrib-streams}
+# Tableau des statistiques descriptives clés de la variable streams
+data.frame(
+  Statistique = c(
+    "Nombre de morceaux",
+    "Moyenne",
+    "Médiane",
+    "Écart-type",
+    "Minimum",
+    "Maximum"
+    ),
+  Valeur = c(
+    scales::comma(sum(!is.na(df$streams))),
+    scales::comma(round(mean(df$streams, na.rm = TRUE))),
+    scales::comma(round(median(df$streams, na.rm = TRUE))),
+    scales::comma(round(sd(df$streams, na.rm = TRUE))),
+    scales::comma(min(df$streams, na.rm = TRUE)),
+    scales::comma(max(df$streams, na.rm = TRUE))
+    ),
+  Interprétation = c(
+    "Taille de l'échantillon analysé",
+    "Tirée vers le haut par les mega-hits",
+    "Valeur centrale robuste aux extrêmes",
+    "Forte dispersion autour de la moyenne",
+    "Morceau avec le moins de streams",
+    "Morceau le plus streamé du dataset"
+    )
+) %>%
+  kable(caption = " Statistiques descriptives Distribution des Streams") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE, position = "center") %>%
+  row_spec(0, bold = TRUE, background = "#1DB954", color = "white") %>%
+  row_spec(6, bold = TRUE, background = "#fff3cd")
+```
+
+## Détection des Valeurs Extrêmes (Boxplot)
+
+On vient ensuite représenter notre variable Y à l'aide d'un boxplot, cela permet de mieux identifier les valeurs extrêmes (outliers). 
+
+```{r boxplot-streams}
+# Le boxplot met en évidence les outliers (en rose) :
+# ce sont les artistes avec des streams exceptionnels qui forment
+# la "longue queue" de la distribution.
+ggplot(df, aes(y = streams)) +
+  geom_boxplot(fill = "#1DB954", color = "white", alpha = 0.8,
+               outlier.colour = "#E91E63", outlier.size = 3) +
+  scale_y_continuous(labels = scales::comma) +
+  theme_minimal() +
+  theme(
+    plot.background  = element_rect(fill = "#191414", color = NA),
+    panel.background = element_rect(fill = "#191414", color = NA),
+    text             = element_text(color = "white"),
+    axis.text        = element_text(color = "white"),
+    axis.text.x      = element_blank(),
+    panel.grid       = element_blank()
+  ) +
+  labs(
+    title = "Dispersion des Streams (Boxplot)",
+    subtitle = "Les points roses représentent les morceaux à succès exceptionnel (outliers)",
+    y = "Nombre de Streams"
+  )
+```
+
+<div class="texte">
+<strong> Ce que le graphique nous dit :</strong>
+<ul>
+<li>La boîte verte (50% des morceaux) est écrasée dans le bas du graphique : <strong>la moitié des titres génèrent relativement peu de streams</strong>, ce qui confirme la forte concentration observée dans l'histogramme.</li>
+<li>Les nombreux <strong>points roses au-dessus</strong> représentent les valeurs extrêmes (outlier), des succès extraordinaires qui dépassent largement le seuil statistique.</li>
+<li>La présence massive d'outliers est une information importante pour la modélisation : avant de mettre en place un modèle de régression, il faudra observer comment réagit la variable Y à une transformation logarithmique des streams.</li>
+</ul>
+</div>
+
+```{r table-boxplot-streams}
+# Calcul des 5 indicateurs du boxplot + seuil outlier
+q1  <- quantile(df$streams, 0.25, na.rm = TRUE)
+q3  <- quantile(df$streams, 0.75, na.rm = TRUE)
+iqr <- IQR(df$streams, na.rm = TRUE)
+seuil_outlier <- q3 + 1.5 * iqr
+n_outliers    <- sum(df$streams > seuil_outlier, na.rm = TRUE)
+
+data.frame(
+  Indicateur = c(
+    "Q1 1er Quartile (25%)",
+    "Médiane (Q2 50%)",
+    "Q3 3e Quartile (75%)",
+    "IQR (Q3 - Q1)",
+    "Seuil outlier (Q3 + 1.5×IQR)",
+    "Nombre d'outliers détectés"
+  ),
+  Valeur = c(
+    scales::comma(round(q1)),
+    scales::comma(round(median(df$streams, na.rm = TRUE))),
+    scales::comma(round(q3)),
+    scales::comma(round(iqr)),
+    scales::comma(round(seuil_outlier)),
+    scales::comma(n_outliers)
+  ),
+  Interprétation = c(
+    "50% des morceaux ont moins de streams que Q1",
+    "Valeur centrale, non influencée par les extremes",
+    "75% des morceaux sont en dessous de cette valeur",
+    "Mesure de la dispersion des 50% centraux",
+    "Tout morceau au-dessus est un outlier",
+    "Ces morceaux forment la 'longue queue' de la distribution"
+  )
+) %>%
+  kable(caption = "Décomposition du Boxplot Les 5 indicateurs clés") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE, position = "center") %>%
+  row_spec(0, bold = TRUE, background = "#1DB954", color = "white") %>%
+  row_spec(6, bold = TRUE, background = "#fde8ee", color = "#E91E63")
+```
+
+## Top 10 des Chansons les Plus Écoutées
+
+Nous observons désormais sur les dix musiques les plus écoutées pour mettre en lumière les sommets de la distribution dans l'optique de saisir l'audience que peut accaparer les outliers.
+
+```{r top10-chansons}
+# Classement des 10 morceaux avec le plus grand nombre de streams cumulés
+# Ce classement illustre la concentration du succès sur très peu de titres
+top_10 <- df %>%
+  arrange(desc(streams)) %>%
+  head(10)
+
+ggplot(top_10, aes(x = reorder(track_name, streams), y = streams)) +
+  geom_col(fill = "#1DB954") +
+  coord_flip() +
+  scale_y_continuous(labels = scales::comma) +
+  theme_minimal() +
+  theme(
+    plot.background  = element_rect(fill = "#191414", color = NA),
+    panel.background = element_rect(fill = "#191414", color = NA),
+    text             = element_text(color = "white"),
+    axis.text        = element_text(color = "white"),
+    panel.grid.major.y = element_blank()
+  ) +
+  labs(
+    title    = " Les 10 Chansons les Plus Écoutées",
+    subtitle = "Nombre de streams cumulés depuis leur sortie",
+    x = "",
+    y = "Nombre de Streams"
+  )
+```
+
+<div class="texte">
+<strong> Ce que le graphique nous dit :</strong>
+<ul>
+<li>Le morceau n°1 dépasse largement les suivants, illustrant une <strong>hiérarchie très marquée</strong> même au sein du top 10.</li>
+<li>Ces 10 morceaux représentent à eux seuls une part significative du volume total de streams du dataset, calculée dans le tableau ci-dessous.</li>
+<li>On remarque que certains artistes apparaissent <strong>plusieurs fois dans le top 10</strong>, ce qui suggère que la popularité d'un artiste booste l'ensemble de son catalogue.</li>
+</ul>
+</div>
+
+```{r table-top10}
+# Tableau détaillé du top 10 avec rang, artiste, streams, part et cumul
+total_streams <- sum(df$streams, na.rm = TRUE)
+
+top_10 %>%
+  arrange(desc(streams)) %>%
+  mutate(
+    Rang = paste0("#", row_number()),
+    Part = streams / total_streams * 100,
+    `Part du total (%)` = paste0(round(Part, 2), "%"),
+    `Cumul (%)` = paste0(round(cumsum(Part), 2), "%"),
+    Streams = scales::comma(streams)
+  ) %>%
+  select(
+    Rang,
+    `Titre` = track_name,
+    `Artiste` = artist_name,
+    Streams,
+    `Part du total (%)`,
+    `Cumul (%)`
+  ) %>%
+  kable(caption = "Top 10 des morceaux les plus streamés Part et cumul dans le volume total") %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  row_spec(0, bold = TRUE, background = "#1DB954", color = "white") %>%
+  row_spec(1, bold = TRUE, background = "#fff9c4")
+```
+
+<div class="texte">
+<strong> Les 10 premières musiques concentrent à elles seules quasiment 6 % des streams totaux, soit : 28 956 629 362 streams. </strong>
+</div>
+
+---
+
+# Analyses Bivariées
+
+<strong>
+On étudie ici les relations entre les streams et les autres variables (audio, contexte, catégories). L'objectif est d'identifier quelles caractéristiques sont les plus liées à la popularité d'un morceau.
+</strong>
+
+## Nuages de Points & Corrélations (Variables Numériques)
+
+```{r scatter-correlations}
+# Passage en format long pour afficher toutes les variables sur un même graphique
+df_long <- df %>%
+  select(streams, bpm, danceability_percent, energy_percent,
+         valence_percent, acousticness_percent, speechiness_percent,
+         in_spotify_charts, instrumentalness_percent, liveness_percent,
+         monthly_listeners_2023_mln) %>%
+  pivot_longer(cols = -streams, names_to = "variable", values_to = "valeur")
+
+# Calcul du coefficient de Pearson (R) pour chaque variable vs streams
+# R proche de 0 → peu de lien linéaire ; R proche de 1 → lien fort positif
+cor_data <- df_long %>%
+  group_by(variable) %>%
+  summarise(correlation = round(cor(streams, valeur, use = "complete.obs"), 2)) %>%
+  mutate(label_text = paste("R =", correlation))
+
+ggplot(df_long, aes(x = valeur, y = streams)) +
+  geom_point(alpha = 0.3, color = "#1DB954") +
+  geom_smooth(method = "lm", color = "white", se = FALSE, size = 0.8) +
+  geom_label(data = cor_data, aes(label = label_text, x = Inf, y = Inf),
+             hjust = 1.1, vjust = 1.5,
+             size = 3.5, fill = "#191414", color = "white", alpha = 0.8) +
+  facet_wrap(~variable, scales = "free_x") +
+  theme_minimal() +
+  theme(
+    plot.background  = element_rect(fill = "#191414", color = NA),
+    panel.background = element_rect(fill = "#191414", color = NA),
+    text             = element_text(color = "white"),
+    axis.text        = element_text(color = "white"),
+    strip.text       = element_text(face = "bold", size = 10, color = "white"),
+    panel.grid.major = element_line(color = "#333333"),
+    panel.grid.minor = element_blank()
+  ) +
+  labs(
+    title    = "Analyse Bivariée : Nuages de Points & Corrélations",
+    subtitle = "Le coefficient R indique la force du lien (proche de 1 = fort lien positif)",
+    x = "Valeur de la variable explicative",
+    y = "Nombre de Streams"
+  )
+
+# Tableau récapitulatif trié par importance du lien (valeur absolue de R)
+cor_data %>%
+  arrange(desc(abs(correlation))) %>%
+  rename("Variable" = variable, "Coefficient R" = correlation) %>%
+  kable(caption = "Tableau des corrélations avec les Streams (trié par importance)")
+```
+
+<div class="texte">
+<strong> Ce que le graphique nous dit :</strong>
+<ul>
+<li>La variable <strong>in_spotify_charts</strong> possède la corrélation linéaire positive la plus forte avec la variable d'intérêt : être présent dans les classements Spotify amplifie la visibilité et donc les streams.</li>
+<li>Les variables audio pures (bpm, energy, danceability...) présentent toutes des corrélations très proches de 0 : les caractéristiques sonores d'un morceau n'expliquent que très peu sa popularité.</li>
+<li>Les nuages de points très dispersés confirment l'absence de lien linéaire fort pour la plupart des variables une approche non-linéaire ou l'ajout de variables contextuelles sera plus pertinente.</li>
+</ul>
+</div>
+<br>
+
+<strong>On peut résumer les corrélations en un tableau :</strong>
+
+
+```{r table-interpretation-correlations}
+# Grille de lecture des corrélations : on classe chaque variable selon
+# la force et le sens de son lien avec les streams
+cor_data %>%
+  arrange(desc(abs(correlation))) %>%
+  mutate(
+    `Force du lien` = case_when(
+      abs(correlation) >= 0.5 ~ "Fort",
+      abs(correlation) >= 0.2 ~ "Modéré",
+      TRUE                    ~ "Faible"
+    ),
+    `Sens` = case_when(
+      correlation > 0  ~ "↑ Positif (plus la variable augmente, plus les streams augmentent)",
+      correlation < 0  ~ "↓ Négatif (plus la variable augmente, moins les streams augmentent)",
+      TRUE             ~ "→ Neutre"
+    )
+  ) %>%
+  select(
+    `Variable`      = variable,
+    `Coefficient R` = correlation,
+    `Force du lien`,
+    `Sens`
+  ) %>%
+  kable(caption = "Grille de lecture des corrélations avec les Streams") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = TRUE, position = "center") %>%
+  row_spec(0, bold = TRUE, background = "#1DB954", color = "white")
+```
+
+## Classement des Variables par Force de Corrélation
+
+```{r barchart-correlations}
+# On recalcule les corrélations sur la liste complète des variables numériques
+# et on les affiche sous forme de barres horizontales pour faciliter la lecture
+explicatives <- c("danceability_percent", "valence_percent", "energy_percent",
+                  "acousticness_percent", "instrumentalness_percent",
+                  "liveness_percent", "speechiness_percent", "bpm",
+                  "in_spotify_charts", "released_year", "monthly_listeners_2023_mln")
+
+cor_data <- data.frame(
+  variable    = explicatives,
+  correlation = sapply(explicatives, function(x) {
+    cor(df$streams, df[[x]], use = "complete.obs")
+  })
+)
+
+# Les barres vertes indiquent une corrélation positive (plus la variable augmente,
+# plus les streams augmentent) ; les grises indiquent une corrélation négative.
+ggplot(cor_data, aes(x = reorder(variable, correlation), y = correlation)) +
+  geom_col(aes(fill = correlation > 0), show.legend = FALSE) +
+  scale_fill_manual(values = c("TRUE" = "#1DB954", "FALSE" = "#B3B3B3")) +
+  coord_flip() +
+  geom_text(aes(label = round(correlation, 2),
+                hjust = ifelse(correlation > 0, -0.2, 1.2)),
+            color = "white", size = 3.5) +
+  theme_minimal() +
+  theme(
+    plot.background  = element_rect(fill = "#191414", color = NA),
+    panel.background = element_rect(fill = "#191414", color = NA),
+    text             = element_text(color = "white"),
+    axis.text        = element_text(color = "white"),
+    panel.grid.major.y = element_blank(),
+    panel.grid.major.x = element_line(color = "#333333")
+  ) +
+  labs(
+    title    = "Qu'est-ce qui influence le plus le nombre de Streams ?",
+    subtitle = "Corrélation de Pearson avec la variable 'Streams' vert = lien positif",
+    x = "",
+    y = "Coefficient de Corrélation (R)"
+  )
+```
+
+<div class="texte">
+<strong> Ce que le graphique nous dit :</strong>
+<ul>
+<li><strong>monthly_listeners_2023_mln</strong> et <strong>in_spotify_charts</strong> sont les deux variables corrélées positiviement avec le nombre de streams.</li>
+<li>La plupart des variables audio (acousticness, instrumentalness, speechiness, bpm...) ont des corrélations <strong>proches de 0, parfois légèrement négatives</strong> : elles n'expliquent quasiment pas la popularité d'un morceau.</li>
+<li>La variable <strong>released_year</strong> a une corrélation négative : les morceaux plus anciens ont eu plus de temps pour accumuler des streams, mais l'effet est faible.</li>
+<li><strong>Il faut néanmoins prendre en compte que'une corrélation ne signifie pas causalité.</strong> Le fait qu'un morceau soit dans les charts peut être la <em>conséquence</em> de ses streams, pas leur cause.</li>
+</ul>
+</div>
+
+```{r table-barchart-correlations}
+# Classement complet des variables du plus influent au moins influent,
+# avec une description lisible de ce que mesure chaque variable audio
+descriptions <- c(
+  "danceability_percent"    = "Aptitude du morceau à faire danser (rythme, stabilité)",
+  "valence_percent"         = "Positivité musicale (joyeux vs triste)",
+  "energy_percent"          = "Intensité et activité perçue du morceau",
+  "acousticness_percent"    = "Part acoustique (faible = très produit/électronique)",
+  "instrumentalness_percent"= "Absence de voix (proche de 100% = instrumental)",
+  "liveness_percent"        = "Probabilité d'enregistrement en live",
+  "speechiness_percent"     = "Présence de paroles parlées (rap, podcast...)",
+  "bpm"                     = "Tempo en battements par minute",
+  "in_spotify_charts"       = "Nombre d'apparitions dans les classements Spotify",
+  "released_year"           = "Année de sortie du morceau",
+  "monthly_listeners_2023_mln" = "Auditeurs mensuels de l'artiste (en millions, 2023)"
+)
+
+cor_data %>%
+  arrange(desc(abs(correlation))) %>%
+  mutate(
+    `R (arrondi)`  = round(correlation, 3),
+    `Description`  = descriptions[variable],
+    `Signe`        = ifelse(correlation > 0, "Positif", "Négatif"),
+    `Rang`         = paste0("#", row_number())
+  ) %>%
+  select(
+    `Rang`,
+    `Variable`    = variable,
+    `Description`,
+    `R (arrondi)`,
+    `Signe`
+  ) %>%
+  kable(caption = " Classement des variables par force de corrélation avec les Streams") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = TRUE, position = "center") %>%
+  row_spec(0, bold = TRUE, background = "#1DB954", color = "white") %>%
+  row_spec(1, bold = TRUE, background = "#e8f5e9")
+```
+
+## Impact du Mode Musical (Majeur vs Mineur)
+
+```{r boxplot-mode}
+# On compare les streams selon la tonalité du morceau (Major / Minor)
+# et on ajoute une catégorie "Global" comme référence.
+# L'hypothèse est que le mode (joyeux/triste) pourrait influencer l'engagement.
+df_split  <- df %>% select(mode, streams)
+df_global <- df %>% select(streams) %>% mutate(mode = "Global")
+df_final  <- bind_rows(df_split, df_global)
+df_final$mode <- factor(df_final$mode, levels = c("Minor", "Major", "Global"))
+
+stats_mediane <- df_final %>%
+  group_by(mode) %>%
+  summarise(mediane = median(streams, na.rm = TRUE))
+
+ggplot(df_final, aes(x = mode, y = streams, fill = mode)) +
+  geom_boxplot(alpha = 0.8, color = "white",
+               outlier.colour = "#E91E63", outlier.alpha = 0.6) +
+  scale_fill_manual(values = c(
+    "Minor"  = "#535353",
+    "Major"  = "#1DB954",
+    "Global" = "#FFFFFF"
+  )) +
+  geom_text(data = stats_mediane,
+            aes(y = mediane, label = scales::comma(mediane)),
+            color = "black", fontface = "bold", size = 3.5, vjust = -0.5) +
+  theme_minimal() +
+  theme(
+    plot.background  = element_rect(fill = "#191414", color = NA),
+    panel.background = element_rect(fill = "#191414", color = NA),
+    text             = element_text(color = "white"),
+    axis.text        = element_text(color = "white", size = 11),
+    axis.title       = element_text(face = "bold"),
+    legend.position  = "none",
+    panel.grid.major.x = element_blank(),
+    panel.grid.major.y = element_line(color = "#333333", linetype = "dashed")
+  ) +
+  labs(
+    title    = "Comparaison des Modes : Mineur vs Majeur vs Global",
+    subtitle = "Distribution des streams avec la médiane annotée par groupe",
+    x = "",
+    y = "Nombre de Streams"
+  )
+```
+
+<div class="texte">
+<strong> Ce que le graphique nous dit :</strong>
+<ul>
+<li>Les médianes de streams pour les morceaux en <strong>mode majeur</strong> et en <strong>mode mineur</strong> sont très proches l'une de l'autre.</li>
+<li>Cela suggère que le mode musical n'est pas un facteur déterminant pour prédire la popularité d'un morceau : le public écoute autant de morceaux joyeux que tristes.</li>
+<li>Les deux distributions présentent une forme similaire (même dispersion, même présence d'outliers), ce qui renforce l'idée que le mode est un facteur secondaire dans l'équation du succès.</li>
+</ul>
+</div>
+
+```{r table-boxplot-mode}
+# Tableau comparatif des statistiques par mode musical (Major, Minor, Global)
+df_final %>%
+  group_by(mode) %>%
+  summarise(
+    `Nb morceaux`  = scales::comma(n()),
+    `Médiane`      = scales::comma(round(median(streams, na.rm = TRUE))),
+    `Moyenne`      = scales::comma(round(mean(streams, na.rm = TRUE))),
+    `Q1`           = scales::comma(round(quantile(streams, 0.25, na.rm = TRUE))),
+    `Q3`           = scales::comma(round(quantile(streams, 0.75, na.rm = TRUE))),
+    `Max`          = scales::comma(round(max(streams, na.rm = TRUE)))
+  ) %>%
+  rename(`Mode` = mode) %>%
+  kable(caption = "Statistiques comparatives par Mode Musical (Majeur / Mineur / Global)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE, position = "center") %>%
+  row_spec(0, bold = TRUE, background = "#1DB954", color = "white") %>%
+  row_spec(which(c("Minor", "Major", "Global") == "Major"), 
+           bold = TRUE, background = "#e8f5e9")
+```
+
+## Évolution des Streams par Année de Sortie
+
+```{r evolution-annuelle}
+# 1. Calcul des statistiques par année avec le décompte (n_tracks)
+df_simple <- df %>%
+  filter(!is.na(released_year), !is.na(streams)) %>%
+  group_by(released_year) %>%
+  summarise(
+    moyenne = mean(streams, na.rm = TRUE),
+    n_tracks = n() # On compte le nombre de morceaux
+  ) %>%
+  # On crée une catégorie pour la couleur selon tes critères
+  mutate(cat_volume = case_when(
+    n_tracks == 1 ~ "1 morceau (Peu fiable)",
+    n_tracks <= 5 ~ "2 à 5 morceaux",
+    TRUE          ~ "Plus de 5 morceaux"
+  ))
+
+global_mean   <- mean(df$streams, na.rm = TRUE)
+global_median <- median(df$streams, na.rm = TRUE)
+
+# 2. Graphique
+ggplot(df_simple, aes(x = released_year, y = moyenne)) +
+  # Zone et ligne de tendance
+  geom_area(fill = "#1DB954", alpha = 0.1) +
+  geom_line(color = "#1DB954", size = 1, alpha = 0.6) +
+  
+  # Les points colorés selon le volume
+  geom_point(aes(fill = cat_volume), color = "white", size = 3, shape = 21, stroke = 1) +
+  
+  # Échelles de couleurs personnalisées
+  scale_fill_manual(values = c(
+    "1 morceau (Peu fiable)" = "#E91E63", # Rouge/Rose
+    "2 à 5 morceaux"         = "#FF9800", # Orange
+    "Plus de 5 morceaux"     = "#1DB954"  # Vert Spotify
+  )) +
+  
+  # Lignes de référence (Moyenne et Médiane)
+  geom_hline(yintercept = global_mean, color = "#E91E63", linetype = "dotted", size = 0.8) +
+  geom_hline(yintercept = global_median, color = "#2E77D0", linetype = "dotted", size = 0.8) +
+  
+  # Annotations
+  annotate("text", x = min(df_simple$released_year), y = global_mean, 
+           label = paste("Moyenne Globale:", label_number(scale_cut = cut_short_scale())(global_mean)), 
+           color = "#E91E63", vjust = -1, hjust = 0, size = 3, fontface = "bold") +
+  annotate("text", x = min(df_simple$released_year), y = global_median, 
+           label = paste("Médiane Globale:", label_number(scale_cut = cut_short_scale())(global_median)), 
+           color = "#2E77D0", vjust = 1.5, hjust = 0, size = 3, fontface = "bold") +
+  
+  # Mise en forme
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale())) +
+  theme_minimal() +
+  theme(
+    plot.background  = element_rect(fill = "#191414", color = NA),
+    panel.background = element_rect(fill = "#191414", color = NA),
+    text             = element_text(color = "white"),
+    axis.text        = element_text(color = "white"),
+    panel.grid.major = element_line(color = "#333333"),
+    panel.grid.minor = element_blank(),
+    legend.position  = "bottom",
+    legend.title     = element_blank(),
+    legend.text      = element_text(color = "white")
+  ) +
+  labs(
+    title    = "Impact du Volume de Sorties sur la Moyenne des Streams",
+    subtitle = "Les points rouges indiquent des années avec un seul morceau (moyenne potentiellement biaisée)",
+    x = "Année de Sortie",
+    y = "Moyenne des Streams"
+  )
+```
+
+<div class="texte">
+<strong> Ce que le graphique nous dit :</strong>
+<ul>
+<li>Les morceaux sortis dans les <strong>années 2000-2015</strong> affichent en général une moyenne de streams élevée : ils ont eu plusieurs années pour accumuler des écoutes sur Spotify.</li>
+<li>Les morceaux très <strong>récents (2022-2023)</strong> ont naturellement une moyenne plus faible, leur cycle de vie sur la plateforme étant plus court au moment de la collecte des données.</li>
+<li>Le <strong>décalage entre moyenne et médiane globales</strong> (lignes rouge et bleue) rappelle l'asymétrie de la distribution : la moyenne est gonflée par les mega-hits de certaines années.</li>
+<li>Ce graphique ne reflète pas la popularité "instantanée" des morceaux récents : un titre sorti en 2023 peut devenir viral, mais n'aura pas encore accumulé autant que des classiques sortis il y a 10 ans.</li>
+<li><strong>Finalement, il est important de comprendre que seules les musiques avec beaucoup de streams sont comprises dans la base de données. Certaines années, les moyennes sont donc biaisées notamment 1975 qui cumule 2 milliards de streams de moyenne : cela s'explique par la présence d'un unique individu sur cette année.</strong></li>
+</ul>
+</div>
+
+```{r table-evolution-annuelle}
+# Tableau de la moyenne des streams par année avec comparaison à la moyenne globale
+df_simple %>%
+  mutate(
+    `Année`          = released_year,
+    `Streams moyens` = scales::comma(round(moyenne)),
+    `vs Moyenne globale` = paste0(
+      ifelse(moyenne >= global_mean, "▲ +", "▼ "),
+      round((moyenne / global_mean - 1) * 100, 1), "%"
+    ),
+    `Nb morceaux`    = scales::comma(
+      df %>% filter(released_year == released_year) %>% nrow()
+    )
+  ) %>%
+  select(`Année`, `Streams moyens`, `vs Moyenne globale`) %>%
+  arrange(desc(`Année`)) %>%
+  kable(caption = "Moyenne des Streams par Année de Sortie Écart à la moyenne globale") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE, position = "center") %>%
+  row_spec(0, bold = TRUE, background = "#1DB954", color = "white")
+```
+
+## Impact d'un Grammy Award sur les Streams
+
+```{r boxplot-grammy}
+# On compare les streams entre artistes ayant remporté un Grammy
+# et ceux qui n'en ont pas. L'idée est de tester si la notoriété (Grammy)
+# se traduit par une audience plus large sur Spotify.
+df_grammy <- df %>%
+  select(grammy_winner, streams) %>%
+  mutate(category = case_when(
+    grammy_winner == 0 ~ "L'artiste n'a pas gagné de Grammy",
+    grammy_winner == 1 ~ "L'artiste a gagné un Grammy"
+  ))
+
+df_global_g <- df %>%
+  select(streams) %>%
+  mutate(category = "Global")
+
+df_final_grammy <- bind_rows(df_grammy, df_global_g)
+df_final_grammy$category <- factor(df_final_grammy$category, levels = c(
+  "L'artiste n'a pas gagné de Grammy",
+  "L'artiste a gagné un Grammy",
+  "Global"
+))
+
+stats_moyenne <- df_final_grammy %>%
+  group_by(category) %>%
+  summarise(moyenne = median(streams, na.rm = TRUE))
+
+ggplot(df_final_grammy, aes(x = category, y = streams, fill = category)) +
+  geom_boxplot(color = "white", alpha = 0.8,
+               outlier.colour = "#E91E63", outlier.alpha = 0.3) +
+  stat_summary(fun = median, geom = "point", shape = 18, size = 5, color = "white") +
+  geom_text(data = stats_moyenne,
+            aes(y = moyenne,
+                label = paste("Med:\n", label_number(scale_cut = cut_short_scale())(moyenne))),
+            color = "white", fontface = "bold", size = 3.5, vjust = -0.8) +
+  scale_fill_manual(values = c(
+    "L'artiste n'a pas gagné de Grammy" = "#535353",
+    "L'artiste a gagné un Grammy"       = "#1DB954",
+    "Global"                            = "#FFFFFF"
+  )) +
+  theme_minimal() +
+  theme(
+    plot.background  = element_rect(fill = "#191414", color = NA),
+    panel.background = element_rect(fill = "#191414", color = NA),
+    text             = element_text(color = "white"),
+    axis.text        = element_text(color = "white", size = 10),
+    axis.title       = element_text(face = "bold"),
+    legend.position  = "none",
+    panel.grid.major.x = element_blank(),
+    panel.grid.major.y = element_line(color = "#333333", linetype = "dashed"),
+    panel.grid.minor   = element_blank()
+  ) +
+  labs(
+    title    = "Impact d'un Grammy Award sur les écoutes",
+    subtitle = "Les Grammy boostent-ils réellement la popularité ? (Le losange blanc indique la médiane)",
+    x = "",
+    y = "Nombre de Streams"
+  )
+```
+
+<div class="texte">
+<strong> Ce que le graphique nous dit :</strong>
+<ul>
+<li>Les artistes <strong>lauréats d'un Grammy</strong> ont une médiane de streams supérieure à ceux qui n'en ont pas remporté, suggérant que la notoriété conférée par ce prix se traduit bien par une audience plus large sur Spotify.</li>
+<li>Cependant, la différence n'est pas aussi spectaculaire qu'on pourrait l'imaginer : les distributions sont assez proches, et de nombreux artistes sans Grammy génèrent autant ou plus de streams que certains lauréats.</li>
+<li>La présence d'outliers des deux côtés rappelle qu'un Grammy <strong>ne garantit pas</strong> le succès commercial, et inversement, un immense succès commercial ne nécessite pas un Grammy.</li>
+<li>Ce résultat illustre bien la dissociation possible entre reconnaissance critique (Grammy) et succès populaire (streams).</li>
+</ul>
+</div>
+
+```{r table-grammy}
+# Tableau comparatif des statistiques entre lauréats et non-lauréats des Grammy
+df_final_grammy %>%
+  filter(category != "Global") %>%
+  group_by(category) %>%
+  summarise(
+    `Nb artistes`   = scales::comma(n()),
+    `Médiane`       = scales::comma(round(median(streams, na.rm = TRUE))),
+    `Moyenne`       = scales::comma(round(mean(streams, na.rm = TRUE))),
+    `Q1`            = scales::comma(round(quantile(streams, 0.25, na.rm = TRUE))),
+    `Q3`            = scales::comma(round(quantile(streams, 0.75, na.rm = TRUE)))
+  ) %>%
+  bind_rows(
+    df_final_grammy %>%
+      filter(category == "Global") %>%
+      summarise(
+        category      = "Global (référence)",
+        `Nb artistes` = scales::comma(n()),
+        `Médiane`     = scales::comma(round(median(streams, na.rm = TRUE))),
+        `Moyenne`     = scales::comma(round(mean(streams, na.rm = TRUE))),
+        `Q1`          = scales::comma(round(quantile(streams, 0.25, na.rm = TRUE))),
+        `Q3`          = scales::comma(round(quantile(streams, 0.75, na.rm = TRUE)))
+      )
+  ) %>%
+  rename(`Groupe` = category) %>%
+  kable(caption = "Comparaison des Streams Lauréats vs Non-lauréats des Grammy") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE, position = "center") %>%
+  row_spec(0, bold = TRUE, background = "#1DB954", color = "white") %>%
+  row_spec(2, bold = TRUE, background = "#e8f5e9")
+```
+
+## Distribution par Pays et par Langue
+
+### Pays
+
+```{r boxplot-pays-langue}
+# 1. Fonction corrigée : Nettoie les NA et réinitialise les catégories (levels)
+creer_boxplot_spotify <- function(data, x_var, title, subtitle) {
+  
+  # Nettoyage rigoureux : 
+  # - On retire les vrais NA
+  # - On retire les chaînes de caractères "NA" (fréquent lors d'imports mal typés)
+  data_clean <- data %>%
+    filter(!is.na(.data[[x_var]]), 
+           .data[[x_var]] != "NA",
+           !is.na(streams)) %>%
+    mutate(!!sym(x_var) := droplevels(as.factor(.data[[x_var]])))
+
+  # Calcul des médianes pour les étiquettes
+  stats_means <- data_clean %>%
+    group_by(.data[[x_var]]) %>%
+    summarise(mean_val = median(streams, na.rm = TRUE))
+
+  ggplot(data_clean, aes(x = reorder(.data[[x_var]], streams, FUN = median), y = streams)) +
+    geom_boxplot(fill = "#1DB954", color = "white", alpha = 0.8, 
+                 outlier.colour = "#E91E63", outlier.alpha = 0.4, outlier.size = 1) +
+    stat_summary(fun = median, geom = "point", shape = 18, size = 4, color = "white") +
+    geom_text(data = stats_means, 
+              aes(x = .data[[x_var]], y = mean_val, 
+                  label = label_number(scale_cut = cut_short_scale())(mean_val)),
+              color = "white", fontface = "bold", size = 3, vjust = -0.8) +
+    theme_minimal() +
+    theme(
+      plot.background  = element_rect(fill = "#191414", color = NA),
+      panel.background = element_rect(fill = "#191414", color = NA),
+      text             = element_text(color = "white"),
+      axis.text        = element_text(color = "white", size = 10),
+      axis.text.x      = element_text(angle = 45, hjust = 1),
+      panel.grid.major.y = element_line(color = "#333333", linetype = "dashed"),
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor   = element_blank(),
+      plot.title         = element_text(face = "bold", size = 14)
+    ) +
+    labs(title = title, subtitle = subtitle, x = "", y = "Streams")
+}
+
+# ── Graphique 1 : Top 15 Pays (p1) ───────────────────────────────────────────
+top_countries <- df %>%
+  filter(!is.na(country.x), country.x != "NA") %>%
+  count(country.x) %>%
+  slice_max(n, n = 15) %>%
+  pull(country.x)
+
+df_country_clean <- df %>% filter(country.x %in% top_countries)
+
+p1 <- creer_boxplot_spotify(df_country_clean, "country.x", 
+                            "Distribution des Streams par Pays (Top 15)",
+                            " ")
+
+# ── Graphique 2 : Top 10 Langues (p2) ────────────────────────────────────────
+top_langs <- df %>%
+  filter(!is.na(language), language != "NA") %>%
+  count(language) %>%
+  slice_max(n, n = 10) %>%
+  pull(language)
+
+df_lang_clean <- df %>% filter(language %in% top_langs)
+
+p2 <- creer_boxplot_spotify(df_lang_clean, "language", 
+                            "Distribution des Streams par Langue (Top 10)", 
+                            "Seules les langues les plus représentées sont affichées")
+
+# Affichage des résultats
+print(p1)
+```
+
+<div class="texte">
+<strong> Ce que les graphiques nous disent :</strong>
+<ul>
+<li>Certains pays (notamment les États-Unis et le Royaume-Uni) ressortent avec des médianes de streams nettement supérieures. Cela s'explique par la taille de leur marché musical, leur rayonnement international, et leur production de hits à fort potentiel viral.</li>
+</ul>
+</div>
+
+```{r table-pays}
+# Tableau récapitulatif des streams médians par pays (Top 15)
+df_country_clean %>%
+  group_by(country.x) %>%
+  summarise(
+    `Nb morceaux` = scales::comma(n()),
+    `Médiane`     = scales::comma(round(median(streams, na.rm = TRUE))),
+    `Moyenne`     = scales::comma(round(mean(streams, na.rm = TRUE))),
+    `Max`         = scales::comma(round(max(streams, na.rm = TRUE)))
+  ) %>%
+  arrange(desc(as.numeric(gsub(",", "", `Médiane`)))) %>%
+  rename(`Pays` = country.x) %>%
+  kable(caption = "Streams par Pays d'origine Top 15 (trié par médiane décroissante)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE, position = "center") %>%
+  row_spec(0, bold = TRUE, background = "#1DB954", color = "white") %>%
+  row_spec(1, bold = TRUE, background = "#e8f5e9")
+```
+
+<strong>Il faut toutefois nuancer l'analyse. On ne se concentre que sur les musiques avec le plus de streams, les valeurs moyennes pour certains pays peuvent surreprésenter les valeurs réelles.</strong>
+
+<hr>
+
+### Langue 
+
+```{r}
+print(p2)
+```
+
+<div class="texte">
+<strong> Ce que les graphiques nous disent :</strong>
+<ul>
+<li>Les morceaux en <strong>anglais</strong> dominent largement, ce qui reflète la portée mondiale de la musique anglophone. Les morceaux en espagnol (pop latino) arrivent souvent en bonne position, portés par des phénomènes comme le reggaeton.</li>
+<li>Ces résultats confirment que le <strong>contexte géographique et linguistique</strong> de l'artiste est un facteur important de popularité sur Spotify bien au-delà des caractéristiques audio du morceau lui-même.</li>
+</ul>
+</div>
+
+```{r table-langue}
+# Tableau récapitulatif des streams médians par langue (Top 10)
+df_lang_clean %>%
+  group_by(language) %>%
+  summarise(
+    `Nb morceaux` = scales::comma(n()),
+    `Médiane`     = scales::comma(round(median(streams, na.rm = TRUE))),
+    `Moyenne`     = scales::comma(round(mean(streams, na.rm = TRUE))),
+    `Max`         = scales::comma(round(max(streams, na.rm = TRUE)))
+  ) %>%
+  arrange(desc(as.numeric(gsub(",", "", `Médiane`)))) %>%
+  rename(`Langue` = language) %>%
+  kable(caption = "Streams par Langue Top 10 (trié par médiane décroissante)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE, position = "center") %>%
+  row_spec(0, bold = TRUE, background = "#1DB954", color = "white") %>%
+  row_spec(1, bold = TRUE, background = "#e8f5e9")
+```
+
+## L'Effet "Escalier" des Charts Spotify
+
+```{r escalier-charts}
+# On découpe la variable 'in_spotify_charts' (nombre d'apparitions dans les charts)
+# en paliers de visibilité. L'hypothèse est qu'une plus grande exposition
+# dans les playlists/charts génère mécaniquement plus de streams.
+df_charts_cat <- df %>%
+  filter(!is.na(in_spotify_charts)) %>%
+  mutate(
+    visibility_level = cut(in_spotify_charts,
+                           breaks = c(-1, 0, 10, 50, 100, 2000),
+                           labels = c("Nulle (0)", "Faible (1-10)", "Moyenne (11-50)",
+                                      "Forte (51-100)", "Super Hit (100+)"))
+  )
+
+stats_medianes <- df_charts_cat %>%
+  group_by(visibility_level) %>%
+  summarise(mediane_val = median(streams, na.rm = TRUE))
+
+ggplot(df_charts_cat, aes(x = visibility_level, y = streams, fill = visibility_level)) +
+  geom_boxplot(color = "white", alpha = 0.8,
+               outlier.colour = "#E91E63", outlier.size = 1.5, outlier.alpha = 0.3) +
+  geom_text(data = stats_medianes,
+            aes(x = visibility_level, y = mediane_val,
+                label = label_number(scale_cut = cut_short_scale())(mediane_val)),
+            color = "white", fontface = "bold", size = 3.5, vjust = -0.5) +
+  scale_fill_brewer(palette = "Greens") +
+  theme_minimal() +
+  theme(
+    plot.background  = element_rect(fill = "#191414", color = NA),
+    panel.background = element_rect(fill = "#191414", color = NA),
+    text             = element_text(color = "white"),
+    axis.text        = element_text(color = "white"),
+    legend.position  = "none",
+    panel.grid.major.y = element_line(color = "#333333", linetype = "dashed"),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor   = element_blank()
+  ) +
+  labs(
+    title    = "L'Effet 'Escalier' des Charts Spotify",
+    subtitle = "Plus un morceau apparaît dans les charts, plus sa médiane de streams est élevée",
+    x = "Nombre d'apparitions dans les Charts Spotify",
+    y = "Streams"
+  )
+```
+
+<div class="texte">
+<strong> Ce que le graphique nous dit :</strong>
+<ul>
+<li>On observe une <strong>progression quasi-monotone des médianes</strong> de palier en palier : plus un morceau apparaît dans les charts, plus il accumule de streams. L'effet "escalier" est très net.</li>
+<li>La catégorie "Super Hit (100+)" présente une médiane de streams plusieurs fois supérieure aux autres paliers le tableau ci-dessous quantifie ce multiplicateur.</li>
+<li>Ce graphique est l'un des plus importants de l'analyse : il suggère que la visibilité algorithmique de Spotify (présence dans les playlists/charts) est peut-être le levier le plus puissant pour augmenter les streams d'un morceau.</li>
+<li> Il existe une possible <strong>causalité circulaire</strong> : un morceau entre dans les charts parce qu'il a beaucoup de streams, et le fait d'être dans les charts lui en génère encore plus ce qui complique son utilisation comme variable prédictive dans un modèle.</li>
+</ul>
+</div>
+
+```{r table-escalier-charts}
+# Tableau de l'effet escalier : on montre la progression de la médiane
+# à chaque palier de visibilité, et le multiplicateur par rapport au palier "Nulle"
+base_mediane <- df_charts_cat %>%
+  filter(visibility_level == "Nulle (0)") %>%
+  summarise(m = median(streams, na.rm = TRUE)) %>%
+  pull(m)
+
+df_charts_cat %>%
+  group_by(visibility_level) %>%
+  summarise(
+    `Nb morceaux`       = scales::comma(n()),
+    `Médiane (streams)` = scales::comma(round(median(streams, na.rm = TRUE))),
+    `Moyenne (streams)` = scales::comma(round(mean(streams, na.rm = TRUE))),
+    `Multiplicateur vs "Nulle"` = paste0(
+      "×", round(median(streams, na.rm = TRUE) / base_mediane, 1)
+    )
+  ) %>%
+  rename(`Niveau de visibilité` = visibility_level) %>%
+  kable(caption = "L'Effet Escalier des Charts Progression de la médiane par palier de visibilité") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE, position = "center") %>%
+  row_spec(0, bold = TRUE, background = "#1DB954", color = "white") %>%
+  row_spec(5, bold = TRUE, background = "#e8f5e9")
+```
+
+---
+
+# Modélisation Statistique
+
+<div class="section-intro">
+On construit ici des modèles de régression linéaire pour identifier les variables qui expliquent significativement le nombre de streams. On utilise le R² (variance expliquée) et des tests ANOVA pour comparer les modèles entre eux.
+</div>
+
+## Variance Expliquée par Variable Catégorielle
+
+```{r variance-expliquee}
+# Pour chaque variable catégorielle, on mesure sa capacité à expliquer
+# les variations de streams via un modèle linéaire simple.
+# Le R² (0 à 100%) indique la proportion de variance expliquée.
+calculer_force_lien <- function(variable_nom) {
+  modele <- lm(as.formula(paste("streams ~", variable_nom)), data = df)
+  r2     <- summary(modele)$r.squared
+  return(paste0("Impact de [ ", variable_nom, " ] : R² = ", round(r2 * 100, 2), "%"))
+}
+
+cat(calculer_force_lien("country.x"),    "\n")
+cat(calculer_force_lien("grammy_winner"), "\n")
+cat(calculer_force_lien("language"),     "\n")
+```
+
+<div class="texte">
+<strong> Ce que les résultats nous disent :</strong>
+<ul>
+<li>Le <strong>R²</strong> mesure la part de variance des streams expliquée par chaque variable seule. Un R² de 5% signifie que la variable explique 5% des différences de streams entre morceaux.</li>
+<li>Les valeurs obtenues restent <strong>relativement faibles</strong> pour ces trois variables catégorielles prises isolément, ce qui confirme qu'aucun facteur unique ne suffit pas à prédire la popularité.</li>
+<li>Le pays tend à avoir un R² plus élevé que le Grammy ou la langue, ce qui est cohérent avec les observations des boxplots précédents.</li>
+</ul>
+</div>
+
+```{r table-variance-expliquee}
+# Tableau récapitulatif du R² pour chaque variable catégorielle
+# Plus le R² est élevé, plus la variable explique les variations de streams
+vars_cat   <- c("country.x", "grammy_winner", "language")
+labels_cat <- c("Pays de l'artiste", "Lauréat d'un Grammy", "Langue du morceau")
+
+df_r2 <- data.frame(
+  Variable       = labels_cat,
+  Code           = vars_cat,
+  r2_val         = sapply(vars_cat, function(v) {
+    modele <- lm(as.formula(paste("streams ~", v)), data = df)
+    round(summary(modele)$r.squared * 100, 2)
+  }),
+  Interpretation = c(
+    "Le pays explique ce % de la variance des streams",
+    "Avoir un Grammy explique ce % de la variance",
+    "La langue explique ce % de la variance des streams"
+  )
+)
+
+df_r2 %>%
+  arrange(desc(r2_val)) %>%
+  kable(
+    col.names = c("Variable", "Code R", "R² (%)", "Interprétation"),
+    caption   = "Pouvoir explicatif (R²) des variables catégorielles sur les Streams"
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE, position = "center") %>%
+  row_spec(0, bold = TRUE, background = "#1DB954", color = "white") %>%
+  row_spec(1, bold = TRUE, background = "#e8f5e9")
+```
+
+<div class="section-intro">
+On construit ici des modèles de régression linéaire pour identifier les variables qui expliquent significativement le nombre de streams. On utilise le R² (variance expliquée) et des tests ANOVA pour comparer les modèles entre eux, en suivant une logique de simplification progressive.
+</div>
+
+
+## Modèle Complet (Toutes Variables)
+
+```{r modele-complet}
+modele_test <- lm(
+  streams ~ bpm + danceability_percent + energy_percent +
+    valence_percent + acousticness_percent + liveness_percent +
+    released_year + in_spotify_charts + instrumentalness_percent +
+    speechiness_percent + language + monthly_listeners_2023_mln + country.x,
+  data = df
+)
+
+summary(modele_test)
+vif(modele_test)
+```
+
+<div class="texte">
+<strong> Ce que les résultats nous disent :</strong>
+<ul>
+<li>Le <strong>R² global</strong> du modèle complet indique la proportion de variance des streams expliquée en combinant toutes les variables. Comparez-le aux R² individuels pour voir le gain apporté par la combinaison.</li>
+<li>Les variables avec une <strong>p-value < 0.05</strong> sont statistiquement significatives : elles contribuent réellement à expliquer les streams au-delà du hasard.</li>
+<li>Les scores <strong>VIF > 5</strong> signalent une multicolinéarité problématique entre certaines variables : elles sont trop corrélées entre elles pour coexister dans un même modèle sans biaiser les estimations.</li>
+<li>Ce modèle complet sert de <strong>référence maximale</strong> : on va ensuite tester des modèles plus simples pour voir si l'on peut conserver la même qualité prédictive avec moins de variables.</li>
+<li>On observe que parmi les variables qualitatives, <strong>seules deux modalités ressortent comme significatives</strong> : languageSpanish et country.xUnited Kingdom. Les 40+ autres modalités de language et country.x ne contribuent pas significativement, ce qui motive leur recodage dans l'étape suivante.</li>
+</ul>
+</div>
+```{r table-modele-complet}
+s <- summary(modele_test)
+
+data.frame(
+  Métrique = c(
+    "R² (Variance expliquée)",
+    "R² ajusté",
+    "F-statistique",
+    "p-value globale",
+    "Nombre d'observations",
+    "Degrés de liberté (résidus)"
+  ),
+  Valeur = c(
+    paste0(round(s$r.squared * 100, 2), "%"),
+    paste0(round(s$adj.r.squared * 100, 2), "%"),
+    round(s$fstatistic[1], 2),
+    format(pf(s$fstatistic[1], s$fstatistic[2], s$fstatistic[3], lower.tail = FALSE), scientific = TRUE, digits = 3),
+    scales::comma(nobs(modele_test)),
+    scales::comma(s$df[2])
+  ),
+  Interprétation = c(
+    "Part de variance des streams expliquée par le modèle",
+    "R² corrigé pour le nombre de variables (plus fiable)",
+    "Test de significativité globale du modèle",
+    "Si < 0.05 : le modèle est statistiquement significatif",
+    "Nombre de morceaux utilisés pour l'estimation",
+    "Observations restantes après estimation des paramètres"
+  )
+) %>%
+  kable(caption = "Synthèse du Modèle Complet — Performance globale") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE, position = "center") %>%
+  row_spec(0, bold = TRUE, background = "#1DB954", color = "white") %>%
+  row_spec(c(1, 2), bold = TRUE, background = "#e8f5e9")
+```
+
+---
+
+## Modèle avec Variables Qualitatives Recodées
+```{r recodage-quali}
+# On crée des variables binaires pour ne garder que les modalités significatives
+# identifiées dans le modèle complet :
+# - language_spanish : seule modalité significative de 'language'
+# - country_uk : seule modalité significative de 'country.x'
+df$language_spanish <- ifelse(df$language == "Spanish", 1, 0)
+df$country_uk       <- ifelse(df$country.x == "United Kingdom", 1, 0)
+
+modele_recode <- lm(
+  streams ~ bpm + danceability_percent + energy_percent +
+    valence_percent + acousticness_percent + liveness_percent +
+    released_year + in_spotify_charts + instrumentalness_percent +
+    speechiness_percent + language_spanish +
+    monthly_listeners_2023_mln + country_uk,
+  data = df
+)
+summary(modele_recode)
+```
+
+<div class="texte">
+<strong> Pourquoi recoder les variables qualitatives ?</strong>
+<ul>
+<li>Dans le modèle complet, <strong>language</strong> et <strong>country.x</strong> introduisaient 40+ modalités dont la grande majorité étaient non significatives, ce qui gonflait inutilement le modèle.</li>
+<li>On remplace ces variables par deux indicateurs binaires ciblés : <strong>language_spanish</strong> (1 si espagnol, 0 sinon) et <strong>country_uk</strong> (1 si Royaume-Uni, 0 sinon).</li>
+<li>On passe ainsi de 44 paramètres à 15, tout en conservant l'essentiel de l'information pertinente.</li>
+</ul>
+</div>
+```{r anova-recode-vs-complet}
+# Test ANOVA : le recodage binaire est-il suffisant vs le modèle complet ?
+# Si p > 0.05 : les modalités supprimées n'apportaient rien de significatif
+a_complet_vs_recode <- anova(modele_recode, modele_test)
+
+data.frame(
+  Modele = c("Recodé Binaire (15 param.)", "Complet (44 param.)"),
+  `Nb parametres` = c(15, 44),
+  `R2` = paste0(c(
+    round(summary(modele_recode)$r.squared * 100, 2),
+    round(summary(modele_test)$r.squared   * 100, 2)
+  ), "%"),
+  `R2 ajuste` = paste0(c(
+    round(summary(modele_recode)$adj.r.squared * 100, 2),
+    round(summary(modele_test)$adj.r.squared   * 100, 2)
+  ), "%"),
+  `p-value ANOVA` = c("—", format(a_complet_vs_recode$`Pr(>F)`[2], scientific = TRUE, digits = 3)),
+  Conclusion = c(
+    "Modele simplifié — référence",
+    ifelse(a_complet_vs_recode$`Pr(>F)`[2] < 0.05,
+           "Apport significatif vs Recodé",
+           "Recodé suffisant")
+  )
+) %>%
+  kable(caption = "Comparaison ANOVA : Modele Recodé vs Modele Complet") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE, position = "center") %>%
+  row_spec(0, bold = TRUE, background = "#1DB954", color = "white") %>%
+  row_spec(1, bold = TRUE, background = "#e8f5e9")
+```
+
+<div class="texte">
+<strong> Interpretation :</strong>
+<ul>
+<li>La p-value du test ANOVA indique si les 29 paramètres supplémentaires du modèle complet apportent une amélioration statistiquement significative par rapport au modèle recodé.</li>
+<li>Si la p-value est <strong>supérieure à 0.05</strong> : les modalités supprimées n'apportaient pas d'information indépendante. Le recodage binaire est suffisant et constitue une simplification légitime.</li>
+<li>Le R² ajusté du modèle recodé, corrigé pour le nombre de paramètres, permet de confirmer que la simplification ne dégrade pas la qualité d'ajustement.</li>
+</ul>
+</div>
+
+---
+
+## Modèle Réduit
+```{r modele-reduit}
+# On pousse la simplification plus loin en ne conservant que les variables
+# qui sont ressorties comme les plus robustement significatives :
+# released_year, in_spotify_charts et instrumentalness_percent.
+modele_test2 <- lm(
+  streams ~ released_year + in_spotify_charts + instrumentalness_percent,
+  data = df
+)
+summary(modele_test2)
+```
+
+<div class="texte">
+<strong> Ce que les résultats nous disent :</strong>
+<ul>
+<li>Ce modèle réduit ne conserve que <strong>3 variables</strong> jugées significatives et peu colinéaires : l'année de sortie, la présence dans les charts, et le taux d'instrumentalité.</li>
+<li>Si le <strong>R² reste proche</strong> de celui du modèle recodé, cela signifie que les variables supprimées n'apportaient pas d'information indépendante — un bon signe pour la parcimonie du modèle.</li>
+<li>Les coefficients indiquent le <strong>sens et la magnitude</strong> de l'effet de chaque variable sur les streams, toutes choses égales par ailleurs.</li>
+</ul>
+</div>
+```{r table-modele-reduit}
+s2 <- summary(modele_test2)
+
+as.data.frame(s2$coefficients) %>%
+  tibble::rownames_to_column("Variable") %>%
+  mutate(
+    `Significatif ?` = case_when(
+      `Pr(>|t|)` < 0.001 ~ "Très significatif (***)",
+      `Pr(>|t|)` < 0.01  ~ "Significatif (**)",
+      `Pr(>|t|)` < 0.05  ~ "Significatif (*)",
+      TRUE                ~ "Non significatif"
+    ),
+    Estimate     = scales::comma(round(Estimate, 0)),
+    `Std. Error` = scales::comma(round(`Std. Error`, 0)),
+    `t value`    = round(`t value`, 3),
+    `Pr(>|t|)`   = format(`Pr(>|t|)`, scientific = TRUE, digits = 3)
+  ) %>%
+  kable(
+    col.names = c("Variable", "Coefficient", "Erreur Std.", "t", "p-value", "Significativité"),
+    caption   = paste0("Modèle Réduit — Coefficients (R² = ",
+                       round(s2$r.squared * 100, 2), "%)")
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE, position = "center") %>%
+  row_spec(0, bold = TRUE, background = "#1DB954", color = "white")
+```
+```{r anova-recode-vs-reduit}
+# Test ANOVA : peut-on simplifier du modèle recodé vers le modèle réduit ?
+# Si p > 0.05 : le modèle réduit est suffisant
+a_recode_vs_v1 <- anova(modele_test2, modele_recode)
+
+data.frame(
+  Modele = c("Réduit (3 param.)", "Recodé Binaire (15 param.)"),
+  `Nb parametres` = c(3, 15),
+  `R2` = paste0(c(
+    round(summary(modele_test2)$r.squared  * 100, 2),
+    round(summary(modele_recode)$r.squared * 100, 2)
+  ), "%"),
+  `R2 ajuste` = paste0(c(
+    round(summary(modele_test2)$adj.r.squared  * 100, 2),
+    round(summary(modele_recode)$adj.r.squared * 100, 2)
+  ), "%"),
+  `p-value ANOVA` = c("—", format(a_recode_vs_v1$`Pr(>F)`[2], scientific = TRUE, digits = 3)),
+  Conclusion = c(
+    "Modele parcimonieux — référence",
+    ifelse(a_recode_vs_v1$`Pr(>F)`[2] < 0.05,
+           "Apport significatif vs Réduit",
+           "Réduit suffisant")
+  )
+) %>%
+  kable(caption = "Comparaison ANOVA : Modele Réduit vs Modele Recodé") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE, position = "center") %>%
+  row_spec(0, bold = TRUE, background = "#1DB954", color = "white") %>%
+  row_spec(1, bold = TRUE, background = "#e8f5e9")
+```
+
+<div class="texte">
+<strong> Interpretation :</strong>
+<ul>
+<li>La conclusion d'un test ANOVA dépend de sa p-value : si celle-ci est <strong>supérieure à 0.05</strong>, le modèle le plus simple est suffisant. Ajouter des variables ne fait que surcharger le modèle sans le rendre plus précis.</li>
+<li>Si la p-value est <strong>inférieure à 0.05</strong> : le modèle recodé apporte une information significative supplémentaire et doit être conservé.</li>
+</ul>
+</div>
+
+---
+
+## Synthèse Comparative des Modèles
+```{r table-synthese-finale}
+data.frame(
+  Modele = c(
+    "Complet (44 param.)",
+    "Recodé Binaire (15 param.)",
+    "Réduit (3 param.)"
+  ),
+  Variables = c(
+    "Toutes variables + toutes modalités quali",
+    "Idem — modalités non significatives remplacées par binaires",
+    "released_year + in_spotify_charts + instrumentalness_percent"
+  ),
+  `R2` = paste0(c(
+    round(summary(modele_test)$r.squared   * 100, 2),
+    round(summary(modele_recode)$r.squared * 100, 2),
+    round(summary(modele_test2)$r.squared  * 100, 2)
+  ), "%"),
+  `R2 ajuste` = paste0(c(
+    round(summary(modele_test)$adj.r.squared   * 100, 2),
+    round(summary(modele_recode)$adj.r.squared * 100, 2),
+    round(summary(modele_test2)$adj.r.squared  * 100, 2)
+  ), "%"),
+  `p-value vs modele suivant` = c(
+    format(a_complet_vs_recode$`Pr(>F)`[2], scientific = TRUE, digits = 3),
+    format(a_recode_vs_v1$`Pr(>F)`[2],      scientific = TRUE, digits = 3),
+    "—"
+  ),
+  Decision = c(
+    ifelse(a_complet_vs_recode$`Pr(>F)`[2] < 0.05,
+           "Trop complexe — modalités redondantes",
+           "Simplifiable vers Recodé"),
+    ifelse(a_recode_vs_v1$`Pr(>F)`[2] < 0.05,
+           "Trop complexe — variables redondantes",
+           "Simplifiable vers Réduit"),
+    "Modele final retenu"
+  )
+) %>%
+  kable(caption = "Synthèse Comparative — Progression de simplification des modèles") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = TRUE, position = "center") %>%
+  row_spec(0, bold = TRUE, background = "#1DB954", color = "white") %>%
+  row_spec(3, bold = TRUE, background = "#e8f5e9")
+```
+
+<div class="texte">
+<strong> Lecture du tableau :</strong>
+<ul>
+<li>Chaque ligne représente un modèle, et la p-value associée teste si le modèle suivant (plus simple) est statistiquement suffisant.</li>
+<li>Une p-value <strong>supérieure à 0.05</strong> valide la simplification : on peut retirer les paramètres supplémentaires sans perte significative de pouvoir explicatif.</li>
+<li>Le <strong>R² ajusté</strong> confirme que chaque simplification ne dégrade pas l'ajustement une fois corrigé pour le nombre de paramètres.</li>
+<li>Le modèle retenu est celui qui offre le meilleur compromis entre parcimonie et qualité d'ajustement, validé à chaque étape par un test ANOVA.</li>
+</ul>
+</div>
+
+# Conclusion 
+<div class="texte">
+<strong>Choix du modèle final et limites de l'analyse :</strong>
+<ul>
+<li>Au terme de la démarche de simplification progressive, le <strong>modèle recodé</strong> est retenu comme modèle final. Les tests ANOVA ont montré que le passage du modèle complet au modèle recodé ne constituait pas une perte significative d'information (p > 0.05), validant ainsi le remplacement des modalités non significatives par deux indicateurs binaires ciblés. À l'inverse, la comparaison entre le modèle recodé et le modèle réduit a révélé que les variables qualitatives recodées, <strong>language_spanish</strong> et <strong>country_uk</strong>, apportent une contribution statistiquement significative (p < 0.05) : elles ne peuvent donc pas être supprimées sans dégrader le pouvoir explicatif du modèle.</li>
+<li>Il convient cependant de souligner plusieurs <strong>limites importantes</strong> qui encadrent l'interprétation de ces résultats. En premier lieu, le dataset est constitué exclusivement de morceaux ayant déjà atteint un niveau élevé de streams : il ne représente pas l'ensemble de la production musicale disponible sur Spotify, mais uniquement sa fraction la plus populaire. Ce biais de sélection implique que les relations estimées entre les variables explicatives et les streams ne sont pas généralisables à l'ensemble des titres.</li>
+<li>En second lieu, le <strong>R² ajusté du modèle reste modeste</strong>, ce qui indique qu'une part substantielle de la variance des streams n'est pas capturée par les variables disponibles. Des facteurs contextuels déterminants; tels que les campagnes promotionnelles, les synchronisations dans des films ou séries, les tendances virales sur les réseaux sociaux, ou encore la notoriété préexistante de l'artiste au moment de la sortie;sont absents du modèle et constituent vraisemblablement des leviers explicatifs majeurs.</li>
+<li>Enfin, la variable <strong>in_spotify_charts</strong>, l'une des plus significatives du modèle, est susceptible d'introduire un problème de <strong>causalité circulaire</strong> : un titre accumule des streams parce qu'il est présent dans les charts, mais il entre dans les charts précisément parce qu'il génère des streams. Cette endogénéité potentielle limite la portée causale des estimations et invite à interpréter les coefficients comme des associations statistiques plutôt que comme des effets causaux établis.</li>
+</ul>
+</div>

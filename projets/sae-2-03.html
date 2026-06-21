@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SAÉ 2.03 Régression sur données réelles · Sevan Petit</title>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body>
+  <div class="layout">
+  <aside class="sidebar">
+    <img class="side-photo" src="../assets/photo_sevan.jpeg" alt="Photo de Sevan Petit" />
+    <div>
+      <div class="side-name">Sevan Petit</div>
+      <div class="side-role">Étudiant en BUT Sciences des Données</div>
+      <span class="side-parcours">Parcours EMS</span>
+    </div>
+    <button class="side-toggle" id="side-toggle" aria-label="Menu">☰</button>
+    <nav class="side-nav" id="side-nav"><a href="../index.html#apropos">À propos</a><a href="../index.html#but1">BUT 1</a><a href="../index.html#but2">BUT 2 · EMS</a><a href="../index.html#stage">Stage</a></nav>
+    <div class="side-actions">
+      <a class="btn-primary" href="../index.html#but1">Voir mes projets</a>
+    </div>
+  </aside>
+    <main class="content">
+      <div class="wrap">
+<div class="proj-header">
+<a class="back-link" href="../index.html#but1">← Retour au portfolio</a>
+<h1>SAÉ 2.03 · Régression sur données réelles</h1>
+<div class="proj-meta"><span class="badge analyser">Analyser</span><span class="date">BUT 1 · Semestre 2</span></div>
+</div>
+<section class="card"><h2>Présentation</h2><p>Choisir un jeu de données (≥ 5 variables quantitatives, ≥ 50 individus) puis réaliser des analyses statistiques sous R, dans la lignée des TP de la SAÉ.</p></section>
+<section class="card"><h2>Ma contribution</h2><ul><li>Choix du jeu de données (statistiques sportives)</li><li>Nuage de points : paniers à 3 points marqués vs matchs joués</li><li>Analyse des résidus du modèle</li></ul></section>
+<section class="card"><h2>Preuves</h2><div class="carousel"><div class="carousel-track"><div class="slide"><img src="../assets/proofs/sae-2-03/proof01.png" alt="Preuve 1" onclick="openLightbox(this.src)"><div class="cap"><h4>Preuve 1</h4></div></div><div class="slide"><img src="../assets/proofs/sae-2-03/proof02.png" alt="Preuve 2" onclick="openLightbox(this.src)"><div class="cap"><h4>Preuve 2</h4></div></div></div><button class="car-btn prev" onclick="moveSlide(this,-1)">❮</button><button class="car-btn next" onclick="moveSlide(this,1)">❯</button><div class="dots"><span class="dot active" onclick="goSlide(this,0)"></span><span class="dot" onclick="goSlide(this,1)"></span></div></div></section>
+<section class="card"><h2>Apprentissages critiques</h2><ul class="ac-list"><li><b>AC12.03</b> · Comprendre l'intérêt des synthèses numériques et graphiques pour décrire une variable</li><li><b>AC12.04</b> · Comprendre l'intérêt des synthèses pour mettre en évidence des liaisons entre variables</li></ul></section>
+<section class="learn"><h2>Ce que j'en retiens</h2><p>J&#x27;ai compris que les graphiques rendent les variables statistiques bien plus lisibles et que la droite ajustée visualise clairement la liaison entre deux variables.</p></section>
+      </div>
+    </main>
+  </div>
+  <div id="lightbox" onclick="closeLightbox(event)">
+    <span class="x" onclick="closeLightbox(event)">×</span>
+    <img id="lightbox-img" src="" alt="Agrandissement" />
+  </div>
+  <script src="../app.js"></script>
+</body>
+</html>

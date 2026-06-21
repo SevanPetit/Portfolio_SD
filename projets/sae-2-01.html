@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SAÉ 2.01 Conception et implémentation d'une base de données · Sevan Petit</title>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body>
+  <div class="layout">
+  <aside class="sidebar">
+    <img class="side-photo" src="../assets/photo_sevan.jpeg" alt="Photo de Sevan Petit" />
+    <div>
+      <div class="side-name">Sevan Petit</div>
+      <div class="side-role">Étudiant en BUT Sciences des Données</div>
+      <span class="side-parcours">Parcours EMS</span>
+    </div>
+    <button class="side-toggle" id="side-toggle" aria-label="Menu">☰</button>
+    <nav class="side-nav" id="side-nav"><a href="../index.html#apropos">À propos</a><a href="../index.html#but1">BUT 1</a><a href="../index.html#but2">BUT 2 · EMS</a><a href="../index.html#stage">Stage</a></nav>
+    <div class="side-actions">
+      <a class="btn-primary" href="../index.html#but1">Voir mes projets</a>
+    </div>
+  </aside>
+    <main class="content">
+      <div class="wrap">
+<div class="proj-header">
+<a class="back-link" href="../index.html#but1">← Retour au portfolio</a>
+<h1>SAÉ 2.01 · Conception et implémentation d&#x27;une base de données</h1>
+<div class="proj-meta"><span class="badge traiter">Traiter</span><span class="date">BUT 1 · Semestre 2</span></div>
+</div>
+<section class="card"><h2>Présentation</h2><p>À partir d'un document sur l'entreprise Compudistri, concevoir un dictionnaire des données puis une base relationnelle pour stocker personnel, ventes, etc., la remplir et vérifier son fonctionnement par des requêtes SQL.</p></section>
+<section class="card"><h2>Ma contribution</h2><ul><li>Participation à la mise en place du dictionnaire des données</li><li>Création du MCD sur Looping (8 tables)</li><li>Implémentation de la base sous ACCESS en SQL</li><li>Création de données fictives et insertion</li><li>Exécution des 42 requêtes SQL de vérification</li></ul></section>
+<section class="card"><h2>Preuves</h2><div class="carousel"><div class="carousel-track"><div class="slide"><img src="../assets/proofs/sae-2-01/proof01.png" alt="Preuve 1" onclick="openLightbox(this.src)"><div class="cap"><h4>Preuve 1</h4></div></div><div class="slide"><img src="../assets/proofs/sae-2-01/proof02.png" alt="Preuve 2" onclick="openLightbox(this.src)"><div class="cap"><h4>Preuve 2</h4></div></div><div class="slide"><img src="../assets/proofs/sae-2-01/proof03.png" alt="Preuve 3" onclick="openLightbox(this.src)"><div class="cap"><h4>Preuve 3</h4></div></div><div class="slide"><img src="../assets/proofs/sae-2-01/proof04.png" alt="Preuve 4" onclick="openLightbox(this.src)"><div class="cap"><h4>Preuve 4</h4></div></div></div><button class="car-btn prev" onclick="moveSlide(this,-1)">❮</button><button class="car-btn next" onclick="moveSlide(this,1)">❯</button><div class="dots"><span class="dot active" onclick="goSlide(this,0)"></span><span class="dot" onclick="goSlide(this,1)"></span><span class="dot" onclick="goSlide(this,2)"></span><span class="dot" onclick="goSlide(this,3)"></span></div></div></section>
+<section class="card"><h2>Apprentissages critiques</h2><ul class="ac-list"><li><b>AC11.01</b> · Correctement interpréter et prendre en compte le besoin du client</li><li><b>AC11.02</b> · Respecter les formalismes de notation</li><li><b>AC11.03</b> · Connaître la syntaxe des langages et savoir l'utiliser</li><li><b>AC11.04</b> · Mesurer l'importance de maîtriser la structure des données à exploiter</li><li><b>AC11.05</b> · Comprendre les structures algorithmiques de base et leur contexte d'usage</li><li><b>AC11.06</b> · Prendre conscience de l'intérêt de la programmation</li></ul></section>
+<section class="learn"><h2>Ce que j'en retiens</h2><p>Un document conséquent à comprendre avant de se lancer ; une fois le dictionnaire établi, structurer une base claire a rendu les analyses bien plus simples.</p></section>
+      </div>
+    </main>
+  </div>
+  <div id="lightbox" onclick="closeLightbox(event)">
+    <span class="x" onclick="closeLightbox(event)">×</span>
+    <img id="lightbox-img" src="" alt="Agrandissement" />
+  </div>
+  <script src="../app.js"></script>
+</body>
+</html>

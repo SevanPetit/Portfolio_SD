@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stage Économie de la santé — parcours de soins en télédermatologie · Sevan Petit</title>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body>
+  <div class="layout">
+  <aside class="sidebar">
+    <img class="side-photo" src="../assets/photo_sevan.jpeg" alt="Photo de Sevan Petit" />
+    <div>
+      <div class="side-name">Sevan Petit</div>
+      <div class="side-role">Étudiant en BUT Sciences des Données</div>
+      <span class="side-parcours">Parcours EMS</span>
+    </div>
+    <button class="side-toggle" id="side-toggle" aria-label="Menu">☰</button>
+    <nav class="side-nav" id="side-nav"><a href="../index.html#apropos">À propos</a><a href="../index.html#but1">BUT 1</a><a href="../index.html#but2">BUT 2 · EMS</a><a href="../index.html#stage">Stage</a></nav>
+    <div class="side-actions">
+      <a class="btn-primary" href="../index.html#but1">Voir mes projets</a>
+    </div>
+  </aside>
+    <main class="content">
+      <div class="wrap">
+<div class="proj-header">
+<a class="back-link" href="../index.html#stage">← Retour au portfolio</a>
+<h1>Stage · Économie de la santé — parcours de soins en télédermatologie</h1>
+<div class="proj-meta"><span class="badge traiter">Traiter</span><span class="badge analyser">Analyser</span><span class="badge valoriser">Valoriser</span><span class="badge modeliser">Modéliser</span><span class="date">Stage · IMT Atlantique · Brest · 2026</span></div>
+</div>
+<section class="card"><h2>Présentation</h2><p>Stage de 2ᵉ année réalisé à l'<strong>IMT Atlantique</strong> (campus de Brest, département DI2S), sous la direction de <strong>Mme Myriam Le Goff-Pronost</strong>, économiste de la santé. Dans un contexte de recherche en <strong>économie de la santé</strong>, ma mission portait sur l'analyse des <strong>parcours de soins en télédermatologie</strong> (télé-expertise entre un médecin généraliste et un dermatologue pour des lésions cutanées suspectes), à partir des données du <strong>SNDS</strong> (Système National des Données de Santé). L'accès aux données réelles étant très encadré, j'ai travaillé sur des <strong>données simulées open data</strong> à l'architecture identique, afin que mon travail soit directement transposable aux vraies données par ma tutrice.</p></section>
+<section class="card"><h2>Ma contribution</h2><ul><li>Préparation des données de santé sous R : jointures des tables (prestations, pharmacie), valorisation des séjours (ajout d&#x27;un prix à chaque GHS)</li><li>Analyse statistique des coûts : distribution des coûts des parcours, répartition par type de prestation et par spécialité médicale</li><li>Analyse chronologique des parcours de soins (actes autour de l&#x27;hospitalisation, parcours types selon la nature de la lésion : bénigne / pré-cancéreuse)</li><li>Développement d&#x27;une &lt;strong&gt;application R Shiny&lt;/strong&gt; de restitution (onglets de variables quantitatives, croisements, indicateurs, parcours patients)</li></ul></section>
+<section class="card"><h2>Aperçus</h2><div class="carousel"><div class="carousel-track"><div class="slide"><img src="../assets/proofs/stage/stage15.png" alt="Application R Shiny" onclick="openLightbox(this.src)"><div class="cap"><h4>Application R Shiny</h4><p>Onglet « Variables Quantitatives » de l&#x27;application de restitution.</p></div></div><div class="slide"><img src="../assets/proofs/stage/stage09.png" alt="Coût des parcours" onclick="openLightbox(this.src)"><div class="cap"><h4>Coût des parcours</h4><p>Distribution du coût des parcours de soins.</p></div></div><div class="slide"><img src="../assets/proofs/stage/stage10.png" alt="Coûts par prestation" onclick="openLightbox(this.src)"><div class="cap"><h4>Coûts par prestation</h4><p>Répartition des coûts par type de prestation.</p></div></div><div class="slide"><img src="../assets/proofs/stage/stage11.png" alt="Parcours fréquents" onclick="openLightbox(this.src)"><div class="cap"><h4>Parcours fréquents</h4><p>Représentation des parcours de soins les plus fréquents.</p></div></div><div class="slide"><img src="../assets/proofs/stage/stage14.png" alt="Coûts par spécialité" onclick="openLightbox(this.src)"><div class="cap"><h4>Coûts par spécialité</h4><p>Coûts moyens par spécialité médicale.</p></div></div><div class="slide"><img src="../assets/proofs/stage/stage18.png" alt="Parcours type" onclick="openLightbox(this.src)"><div class="cap"><h4>Parcours type</h4><p>Parcours type pour une lésion bénigne.</p></div></div></div><button class="car-btn prev" onclick="moveSlide(this,-1)">❮</button><button class="car-btn next" onclick="moveSlide(this,1)">❯</button><div class="dots"><span class="dot active" onclick="goSlide(this,0)"></span><span class="dot" onclick="goSlide(this,1)"></span><span class="dot" onclick="goSlide(this,2)"></span><span class="dot" onclick="goSlide(this,3)"></span><span class="dot" onclick="goSlide(this,4)"></span><span class="dot" onclick="goSlide(this,5)"></span></div></div></section>
+<section class="card"><h2>Compétences mobilisées</h2><p>Stage transversal mobilisant les quatre compétences : <strong>Traiter</strong> (préparation de données de santé complexes), <strong>Analyser</strong> (statistiques et parcours de soins), <strong>Modéliser</strong> (indicateurs, profils de parcours) et <strong>Valoriser</strong> (application R Shiny interactive pour la chercheuse).</p></section>
+<section class="learn"><h2>Ce que j'en retiens</h2><p>Première expérience professionnelle très enrichissante : j&#x27;ai découvert le monde de la recherche et la manipulation de données de santé, de leur préparation jusqu&#x27;à une restitution interactive. J&#x27;ai appris à m&#x27;adapter (le sujet initial a été réorienté faute de données) et à produire un travail directement exploitable par ma tutrice.</p></section>
+      </div>
+    </main>
+  </div>
+  <div id="lightbox" onclick="closeLightbox(event)">
+    <span class="x" onclick="closeLightbox(event)">×</span>
+    <img id="lightbox-img" src="" alt="Agrandissement" />
+  </div>
+  <script src="../app.js"></script>
+</body>
+</html>

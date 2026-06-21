@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SAÉ 1.06 Mise en œuvre d'une enquête · Sevan Petit</title>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body>
+  <div class="layout">
+  <aside class="sidebar">
+    <img class="side-photo" src="../assets/photo_sevan.jpeg" alt="Photo de Sevan Petit" />
+    <div>
+      <div class="side-name">Sevan Petit</div>
+      <div class="side-role">Étudiant en BUT Sciences des Données</div>
+      <span class="side-parcours">Parcours EMS</span>
+    </div>
+    <button class="side-toggle" id="side-toggle" aria-label="Menu">☰</button>
+    <nav class="side-nav" id="side-nav"><a href="../index.html#apropos">À propos</a><a href="../index.html#but1">BUT 1</a><a href="../index.html#but2">BUT 2 · EMS</a><a href="../index.html#stage">Stage</a></nav>
+    <div class="side-actions">
+      <a class="btn-primary" href="../index.html#but1">Voir mes projets</a>
+    </div>
+  </aside>
+    <main class="content">
+      <div class="wrap">
+<div class="proj-header">
+<a class="back-link" href="../index.html#but1">← Retour au portfolio</a>
+<h1>SAÉ 1.06 · Mise en œuvre d&#x27;une enquête</h1>
+<div class="proj-meta"><span class="badge valoriser">Valoriser</span><span class="date">BUT 1 · Semestre 1</span></div>
+</div>
+<section class="card"><h2>Présentation</h2><p>Produire un questionnaire diffusé aux habitants de Belle-Île pour mesurer la notoriété de la CPIE, puis exploiter les réponses.</p></section>
+<section class="card"><h2>Ma contribution</h2><ul><li>Étude de l&#x27;activité de la CPIE sur l&#x27;île</li><li>Élaboration des questions du questionnaire</li><li>Tri et nettoyage des données récoltées, puis analyses</li></ul></section>
+<section class="card"><h2>Preuves</h2><div class="carousel"><div class="carousel-track"><div class="slide"><img src="../assets/proofs/sae-1-06/proof01.png" alt="Preuve 1" onclick="openLightbox(this.src)"><div class="cap"><h4>Preuve 1</h4></div></div></div><button class="car-btn prev" onclick="moveSlide(this,-1)">❮</button><button class="car-btn next" onclick="moveSlide(this,1)">❯</button><div class="dots"><span class="dot active" onclick="goSlide(this,0)"></span></div></div></section>
+<section class="card"><h2>Apprentissages critiques</h2><ul class="ac-list"><li><b>AC13.01</b> · Prendre connaissance des biais rencontrés dans la mise en place d'une enquête</li><li><b>AC13.02</b> · Identifier l'importance de contextualiser ses données</li><li><b>AC13.04</b> · Lors de la restitution, expliciter également la démarche suivie</li><li><b>AC13.05</b> · Comprendre les intérêts de la data visualisation et de l'infographie</li><li><b>AC13.06</b> · Soigner une expression précise et nuancée (français et langue étrangère)</li></ul></section>
+<section class="learn"><h2>Ce que j'en retiens</h2><p>Le nettoyage (cases vides, colonnes pour réponses multiples, suppression de tuples) fut une grosse partie du travail ; créer un questionnaire de toutes pièces m&#x27;a appris à travailler en autonomie.</p></section>
+      </div>
+    </main>
+  </div>
+  <div id="lightbox" onclick="closeLightbox(event)">
+    <span class="x" onclick="closeLightbox(event)">×</span>
+    <img id="lightbox-img" src="" alt="Agrandissement" />
+  </div>
+  <script src="../app.js"></script>
+</body>
+</html>

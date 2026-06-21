@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SAÉ 4.01 Prédiction de la popularité de morceaux Spotify · Sevan Petit</title>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body>
+  <div class="layout">
+  <aside class="sidebar">
+    <img class="side-photo" src="../assets/photo_sevan.jpeg" alt="Photo de Sevan Petit" />
+    <div>
+      <div class="side-name">Sevan Petit</div>
+      <div class="side-role">Étudiant en BUT Sciences des Données</div>
+      <span class="side-parcours">Parcours EMS</span>
+    </div>
+    <button class="side-toggle" id="side-toggle" aria-label="Menu">☰</button>
+    <nav class="side-nav" id="side-nav"><a href="../index.html#apropos">À propos</a><a href="../index.html#but1">BUT 1</a><a href="../index.html#but2">BUT 2 · EMS</a><a href="../index.html#stage">Stage</a></nav>
+    <div class="side-actions">
+      <a class="btn-primary" href="../index.html#but1">Voir mes projets</a>
+    </div>
+  </aside>
+    <main class="content">
+      <div class="wrap">
+<div class="proj-header">
+<a class="back-link" href="../index.html#but2">← Retour au portfolio</a>
+<h1>SAÉ 4.01 · Prédiction de la popularité de morceaux Spotify</h1>
+<div class="proj-meta"><span class="badge modeliser">Modéliser</span><span class="badge analyser">Analyser</span><span class="date">BUT 2 · Modélisation statistique</span></div>
+</div>
+<section class="card"><h2>Présentation</h2><p>Projet d'équipe (Carl Penven, Sevan Petit, Joshua Ronarc'h, Taha Tiyal) : à partir d'un jeu de données Spotify (caractéristiques audio des morceaux et genres), prédire la popularité d'un titre — mesurée par son nombre de streams — à partir de ses variables audio.</p></section>
+<section class="card"><h2>Ma contribution</h2><ul><li>Nettoyage et enrichissement du jeu (recodage des genres principaux)</li><li>Statistiques descriptives et étude des corrélations (variables audio ↔ streams)</li><li>Test ANOVA de l&#x27;effet du genre sur les streams</li><li>Régression linéaire multiple, comparaison des modèles par R² / R² ajusté</li><li>Modélisation séparée par genre musical</li></ul></section>
+<section class="card"><h2>Extrait de code (R)</h2><div class="code"><pre># Régression linéaire : les streams expliqués par les variables audio
+modele_test &lt;- lm(streams ~ danceability + energy + valence + loudness,
+                  data = spotify)
+summary(modele_test)        # R2, R2 ajuste, significativite des variables
+
+# Pouvoir explicatif (R2) de chaque variable, genre par genre
+for (v in variables_audio) {
+  modele &lt;- lm(as.formula(paste(&quot;streams ~&quot;, v)), data = df_genre)
+  cat(v, &quot;:&quot;, round(summary(modele)$r.squared * 100, 2), &quot;%\n&quot;)
+}</pre></div></section>
+<section class="card"><h2>Compétences mobilisées</h2><p>Compétences <strong>Modéliser</strong> (construction et évaluation de modèles de régression) et <strong>Analyser</strong> (corrélations, ANOVA, qualité d'ajustement) du parcours EMS.</p></section>
+<section class="card"><h2>Téléchargements</h2><div class="downloads"><a class="dl" href="../docs/spotify_rendu_final.Rmd" download><div><strong>Rendu final (R Markdown)</strong><small>Analyse &amp; modélisation complète (.Rmd)</small></div></a><a class="dl" href="../docs/spotify_presentation.pptx" download><div><strong>Présentation du projet</strong><small>Support de soutenance (.pptx)</small></div></a></div></section>
+<section class="learn"><h2>Ce que j'en retiens</h2><p>J&#x27;ai consolidé la modélisation statistique sous R : construire un modèle de régression, évaluer sa qualité (R² ajusté, résidus) et comparer des modèles selon le contexte (ici, le genre musical).</p></section>
+      </div>
+    </main>
+  </div>
+  <div id="lightbox" onclick="closeLightbox(event)">
+    <span class="x" onclick="closeLightbox(event)">×</span>
+    <img id="lightbox-img" src="" alt="Agrandissement" />
+  </div>
+  <script src="../app.js"></script>
+</body>
+</html>

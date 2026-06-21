@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SAÉ 2.05 Construction et présentation d'indicateurs · Sevan Petit</title>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body>
+  <div class="layout">
+  <aside class="sidebar">
+    <img class="side-photo" src="../assets/photo_sevan.jpeg" alt="Photo de Sevan Petit" />
+    <div>
+      <div class="side-name">Sevan Petit</div>
+      <div class="side-role">Étudiant en BUT Sciences des Données</div>
+      <span class="side-parcours">Parcours EMS</span>
+    </div>
+    <button class="side-toggle" id="side-toggle" aria-label="Menu">☰</button>
+    <nav class="side-nav" id="side-nav"><a href="../index.html#apropos">À propos</a><a href="../index.html#but1">BUT 1</a><a href="../index.html#but2">BUT 2 · EMS</a><a href="../index.html#stage">Stage</a></nav>
+    <div class="side-actions">
+      <a class="btn-primary" href="../index.html#but1">Voir mes projets</a>
+    </div>
+  </aside>
+    <main class="content">
+      <div class="wrap">
+<div class="proj-header">
+<a class="back-link" href="../index.html#but1">← Retour au portfolio</a>
+<h1>SAÉ 2.05 · Construction et présentation d&#x27;indicateurs</h1>
+<div class="proj-meta"><span class="badge valoriser">Valoriser</span><span class="date">BUT 1 · Semestre 2</span></div>
+</div>
+<section class="card"><h2>Présentation</h2><p>Simulation d'un marché socio-économique via le jeu TERSTRAT : vendre des produits d'une certaine qualité à un certain prix pour générer du chiffre d'affaires et des bénéfices.</p></section>
+<section class="card"><h2>Ma contribution</h2><ul><li>Création du logo, du slogan et du nom de l&#x27;entreprise</li><li>Participation aux décisions de prix et de qualité des produits</li><li>Création du flyer</li></ul></section>
+<section class="card"><h2>Preuves</h2><div class="carousel"><div class="carousel-track"><div class="slide"><img src="../assets/proofs/sae-2-05/proof01.jpg" alt="Preuve 1" onclick="openLightbox(this.src)"><div class="cap"><h4>Preuve 1</h4></div></div><div class="slide"><img src="../assets/proofs/sae-2-05/proof02.png" alt="Preuve 2" onclick="openLightbox(this.src)"><div class="cap"><h4>Preuve 2</h4></div></div></div><button class="car-btn prev" onclick="moveSlide(this,-1)">❮</button><button class="car-btn next" onclick="moveSlide(this,1)">❯</button><div class="dots"><span class="dot active" onclick="goSlide(this,0)"></span><span class="dot" onclick="goSlide(this,1)"></span></div></div></section>
+<section class="card"><h2>Apprentissages critiques</h2><ul class="ac-list"><li><b>AC13.02</b> · Identifier l'importance de contextualiser ses données</li><li><b>AC13.03</b> · Mettre en évidence des résultats clés par des indicateurs pertinents</li><li><b>AC13.04</b> · Lors de la restitution, expliciter également la démarche suivie</li><li><b>AC13.05</b> · Comprendre les intérêts de la data visualisation et de l'infographie</li></ul></section>
+<section class="learn"><h2>Ce que j'en retiens</h2><p>Il fallait sans cesse remettre en question la stratégie d&#x27;après les résultats ; j&#x27;ai progressé en communication de groupe et en analyse d&#x27;un marché concurrentiel.</p></section>
+      </div>
+    </main>
+  </div>
+  <div id="lightbox" onclick="closeLightbox(event)">
+    <span class="x" onclick="closeLightbox(event)">×</span>
+    <img id="lightbox-img" src="" alt="Agrandissement" />
+  </div>
+  <script src="../app.js"></script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SAÉ 1.04 / 1.05 Production de données & présentation en anglais · Sevan Petit</title>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body>
+  <div class="layout">
+  <aside class="sidebar">
+    <img class="side-photo" src="../assets/photo_sevan.jpeg" alt="Photo de Sevan Petit" />
+    <div>
+      <div class="side-name">Sevan Petit</div>
+      <div class="side-role">Étudiant en BUT Sciences des Données</div>
+      <span class="side-parcours">Parcours EMS</span>
+    </div>
+    <button class="side-toggle" id="side-toggle" aria-label="Menu">☰</button>
+    <nav class="side-nav" id="side-nav"><a href="../index.html#apropos">À propos</a><a href="../index.html#but1">BUT 1</a><a href="../index.html#but2">BUT 2 · EMS</a><a href="../index.html#stage">Stage</a></nav>
+    <div class="side-actions">
+      <a class="btn-primary" href="../index.html#but1">Voir mes projets</a>
+    </div>
+  </aside>
+    <main class="content">
+      <div class="wrap">
+<div class="proj-header">
+<a class="back-link" href="../index.html#but1">← Retour au portfolio</a>
+<h1>SAÉ 1.04 / 1.05 · Production de données &amp; présentation en anglais</h1>
+<div class="proj-meta"><span class="badge valoriser">Valoriser</span><span class="date">BUT 1 · Semestre 1</span></div>
+</div>
+<section class="card"><h2>Présentation</h2><p>Imaginer l'implantation d'une entreprise sur un nouveau marché/pays : analyser ce marché, étudier les concurrents et conclure sur la pertinence de l'implantation, avec une présentation orale en anglais.</p></section>
+<section class="card"><h2>Ma contribution</h2><ul><li>Recherches sur l&#x27;entreprise et ses concurrents, collecte de résultats</li><li>Graphiques d&#x27;évolution des marchés (parts d&#x27;export/import du poulet)</li><li>Analyse du marché français</li></ul></section>
+<section class="card"><h2>Preuves</h2><div class="carousel"><div class="carousel-track"><div class="slide"><img src="../assets/proofs/sae-1-04-05/proof01.png" alt="Preuve 1" onclick="openLightbox(this.src)"><div class="cap"><h4>Preuve 1</h4></div></div></div><button class="car-btn prev" onclick="moveSlide(this,-1)">❮</button><button class="car-btn next" onclick="moveSlide(this,1)">❯</button><div class="dots"><span class="dot active" onclick="goSlide(this,0)"></span></div></div></section>
+<section class="card"><h2>Apprentissages critiques</h2><ul class="ac-list"><li><b>AC13.02</b> · Identifier l'importance de contextualiser ses données</li><li><b>AC13.03</b> · Mettre en évidence des résultats clés par des indicateurs pertinents</li><li><b>AC13.04</b> · Lors de la restitution, expliciter également la démarche suivie</li><li><b>AC13.06</b> · Soigner une expression précise et nuancée (français et langue étrangère)</li></ul></section>
+<section class="learn"><h2>Ce que j'en retiens</h2><p>Projet qui a développé mes compétences en analyse de marché économique et ma compréhension des résultats d&#x27;entreprise.</p></section>
+      </div>
+    </main>
+  </div>
+  <div id="lightbox" onclick="closeLightbox(event)">
+    <span class="x" onclick="closeLightbox(event)">×</span>
+    <img id="lightbox-img" src="" alt="Agrandissement" />
+  </div>
+  <script src="../app.js"></script>
+</body>
+</html>

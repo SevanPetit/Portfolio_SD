@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Portfolio · Sevan Petit</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+  <aside class="sidebar">
+    <img class="side-photo" src="assets/photo_sevan.jpeg" alt="Photo de Sevan Petit" />
+    <div>
+      <div class="side-name">Sevan Petit</div>
+      <div class="side-role">Étudiant en BUT Sciences des Données</div>
+      <span class="side-parcours">Parcours EMS</span>
+    </div>
+    <button class="side-toggle" id="side-toggle" aria-label="Menu">☰</button>
+    <nav class="side-nav" id="side-nav"><a href="#apropos">À propos</a><a href="#competences">Compétences</a><a href="#but1">BUT 1</a><a href="#but2">BUT 2 · EMS</a><a href="#stage">Stage</a></nav>
+    <div class="side-actions">
+      <a class="btn-primary" href="#but1">Voir mes projets</a>
+    </div>
+  </aside>
+    <main class="content">
+      <div class="wrap">
+      <section class="intro" id="apropos">
+        <p class="eyebrow">Portfolio · BUT Sciences des Données</p>
+        <h1>Sevan Petit</h1>
+        <p class="lead">Étudiant en BUT Sciences des Données à l'IUT de Vannes, parcours
+        <strong>EMS</strong> (Exploration &amp; Modélisation Statistiques). J'explore des jeux de
+        données réels et je construis des modèles statistiques pour en tirer des analyses et des
+        prévisions — de la collecte jusqu'à la restitution.</p>
+      </section>
+
+      <section class="section" id="competences">
+        <div class="section-head"><h2>Compétences</h2><span class="rule"></span><span class="tag">Programme national</span></div>
+        <div class="comp-grid">
+      <div class="comp traiter"><h3>Traiter des données</h3><p>Extraire, nettoyer et structurer des données (SQL, Python, ACCESS) pour les rendre exploitables.</p></div>
+      <div class="comp analyser"><h3>Analyser statistiquement</h3><p>Décrire, estimer et mettre en évidence des liaisons (R, échantillonnage, régression, ACP).</p></div>
+      <div class="comp valoriser"><h3>Valoriser une production</h3><p>Restituer des résultats clairs et contextualisés (dataviz, enquêtes, présentations).</p></div>
+      <div class="comp modeliser"><h3>Modéliser — parcours EMS</h3><p>Construire et évaluer des modèles statistiques : régression, classification, séries temporelles.</p></div></div>
+      </section>
+
+      <section class="section" id="but1">
+        <div class="section-head"><h2>BUT 1</h2><span class="rule"></span><span class="tag">Semestres 1–2</span></div>
+        <div class="projects"><a class="project-card traiter" href="projets/sae-1-01.html"><span class="num">1.01</span><span class="body"><h3>Reporting à partir d&#x27;une base SQL</h3><p>Requêtes SQL et tableau de bord Excel</p></span><span class="go">→</span></a>
+<a class="project-card traiter" href="projets/sae-1-02.html"><span class="num">1.02</span><span class="body"><h3>Lecture et écriture de fichiers de données</h3><p>Traitement d&#x27;un flux de données en Python</p></span><span class="go">→</span></a>
+<a class="project-card valoriser" href="projets/sae-1-04-05.html"><span class="num">1.04 / 1.05</span><span class="body"><h3>Production de données &amp; présentation en anglais</h3><p>Analyse de marché et restitution orale en anglais</p></span><span class="go">→</span></a>
+<a class="project-card valoriser" href="projets/sae-1-06.html"><span class="num">1.06</span><span class="body"><h3>Mise en œuvre d&#x27;une enquête</h3><p>Questionnaire diffusé aux habitants de Belle-Île (CPIE)</p></span><span class="go">→</span></a>
+<a class="project-card traiter" href="projets/sae-2-01.html"><span class="num">2.01</span><span class="body"><h3>Conception et implémentation d&#x27;une base de données</h3><p>Dictionnaire des données, MCD, ACCESS &amp; 42 requêtes</p></span><span class="go">→</span></a>
+<a class="project-card analyser" href="projets/sae-2-02.html"><span class="num">2.02</span><span class="body"><h3>Estimation par échantillonnage</h3><p>Statistiques et simulations sous R</p></span><span class="go">→</span></a>
+<a class="project-card analyser" href="projets/sae-2-03.html"><span class="num">2.03</span><span class="body"><h3>Régression sur données réelles</h3><p>Régression linéaire sous R</p></span><span class="go">→</span></a>
+<a class="project-card multi" href="projets/sae-2-04.html"><span class="num">2.04</span><span class="body"><h3>Datavisualisation</h3><p>Évolution des diplômés en France (données INSEE)</p></span><span class="go">→</span></a>
+<a class="project-card valoriser" href="projets/sae-2-05.html"><span class="num">2.05</span><span class="body"><h3>Construction et présentation d&#x27;indicateurs</h3><p>Simulation de marché (jeu TERSTRAT)</p></span><span class="go">→</span></a>
+<a class="project-card multi" href="projets/sae-2-06.html"><span class="num">2.06</span><span class="body"><h3>Analyse, reporting et datavisualisation</h3><p>Annulations de trajets en bateau vs météo (client réel)</p></span><span class="go">→</span></a></div>
+      </section>
+
+      <section class="section" id="but2">
+        <div class="section-head"><h2>BUT 2 · Parcours EMS</h2><span class="rule"></span><span class="tag">Semestres 3–4</span></div>
+        <div class="projects"><a class="project-card modeliser" href="projets/sae-4-01.html"><span class="num">4.01</span><span class="body"><h3>Prédiction de la popularité de morceaux Spotify</h3><p>Régression linéaire par genre sous R</p></span><span class="go">→</span></a>
+<a class="project-card analyser" href="projets/sae-4-02.html"><span class="num">4.02</span><span class="body"><h3>ACP, clustering &amp; tableaux de bord R Shiny</h3><p>Criminalité aux USA &amp; tableau de bord Vins</p></span><span class="go">→</span></a>
+<a class="project-card modeliser" href="projets/sae-series-temp.html"><span class="num">ST</span><span class="body"><h3>Analyse de séries temporelles</h3><p>Décomposition, ACF et prévision sous R</p></span><span class="go">→</span></a></div>
+      </section>
+
+      <section class="section" id="stage">
+        <div class="section-head"><h2>Stage</h2><span class="rule"></span><span class="tag">Fin de 2ᵉ année · 2026</span></div>
+        <div class="projects">
+          <a class="project-card modeliser" href="projets/stage.html">
+            <span class="num">★</span>
+            <span class="body"><h3>IMT Atlantique — Économie de la santé</h3><p>Parcours de soins en télédermatologie (données SNDS, application R Shiny)</p></span>
+            <span class="go">→</span>
+          </a>
+        </div>
+      </section>
+
+      <section class="note">
+        <strong>Mon parcours.</strong> Le parcours EMS m'a fait découvrir la modélisation statistique
+        (régression, ACP, clustering, séries temporelles), et mon stage à l'IMT Atlantique m'a permis de
+        l'appliquer à des données de santé. Je souhaite continuer à progresser en programmation et
+        approfondir la science des données appliquée.
+      </section>
+
+      <footer class="site-foot">© 2026 Sevan Petit · Portfolio BUT Sciences des Données (parcours EMS)</footer>
+      </div>
+    </main>
+  </div>
+  <div id="lightbox" onclick="closeLightbox(event)">
+    <span class="x" onclick="closeLightbox(event)">×</span>
+    <img id="lightbox-img" src="" alt="Agrandissement" />
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
